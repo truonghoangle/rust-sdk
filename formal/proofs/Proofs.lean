@@ -64,6 +64,10 @@ public import Proofs.Model.Skill.Verify
 public import Proofs.Model.Skill.Model
 public import Proofs.Model.Skill.ValidateHelpers
 public import Proofs.Model.Skill.Validate
+public import Proofs.Model.ElicitationSchema.Common
+public import Proofs.Model.ElicitationSchema.Primitive
+public import Proofs.Model.ElicitationSchema.Enum
+public import Proofs.Model.ElicitationSchema.Schema
 public import Proofs.Transport.ClientSideSse
 public import Proofs.Transport.AsyncRw
 public import Proofs.Transport.Tower
@@ -81,11 +85,13 @@ public import Proofs.Defs.AuthMetadata
 public import Proofs.Defs.McpHeaders
 public import Proofs.Defs.Methods
 public import Proofs.Defs.Tower
+public import Proofs.Defs.ElicitationSchema
 public import Proofs.Internal.External
 public import Proofs.Internal.Model
 public import Proofs.Internal.Model.RequestState
 public import Proofs.Internal.Model.RequestStateWire
 public import Proofs.Internal.Model.Skill
+public import Proofs.Internal.Model.ElicitationSchema
 public import Proofs.Internal.Transport.Common.ClientSideSse
 public import Proofs.Internal.Transport.AsyncRw
 public import Proofs.Internal.Transport.StreamableHttpServer.Tower
@@ -134,6 +140,15 @@ SEP-2243 header-value encoding (2026-11-28): `Proofs.Transport.McpHeaders.Common
 laws of `Defs.McpHeaders` and the compositions; statements signed off 2026-11-28), restated in
 `Proofs.Internal.Transport.Common.McpHeaders`, with their definitions in `Proofs.Defs.McpHeaders`;
 the laws of the Base64 and string models are in `Proofs.External.Base64Std`.
+
+Elicitation schema builders (2026-11-28): `Proofs.Model.ElicitationSchema.{Common, Primitive,
+Enum, Schema}` (X01–X75 of `model/elicitation_schema.rs`, 65 of them `ORIGINAL` and 10 through
+patch 08, the `Default` impl of `EnumSchemaBuilder<SingleSelect>`, the builder invariants, the
+consistency of built schemas and the laws of `Defs.ElicitationSchema`; statements signed off
+2026-11-28), with the external-model laws in `Proofs.External.ElicitationSchema`. The 86
+top-level statements are restated in `Specs.Model.ElicitationSchema`, the 23 others in
+`Proofs.Internal.Model.ElicitationSchema`, with their internal-only definitions in
+`Proofs.Defs.ElicitationSchema`.
 
 Since 2026-11-24 it also imports the definitions used only by internal statements
 (`Proofs.Defs.*`) and the internal spec files (`Proofs.Internal.*`: statements about intermediate

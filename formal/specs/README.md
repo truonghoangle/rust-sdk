@@ -1,25 +1,34 @@
 # What is verified: index of the guarantees
 
 > **At a glance.** Lean proves, for 25 Phase 1 and 25 Phase 2 Rust functions of `rmcp`, 15 public
-> functions of `request_state.rs` (R01–R15) and the 20 public functions of `skill.rs` (K01–K20),
-> that the translated call does not panic and returns what the statement says. Phase 2 and 13 of the
-> `skill.rs` functions are upstream `7caec76` unmodified; Phase 1 and R01–R08 are about a patched
-> copy (translation patch 01), R09–R15 about the copy with translation patches 01 and 03, and the
-> other 7 `skill.rs` functions (K05–K07, K13–K16) about the copy with translation patch 04. 52
-> guarantees are about the top-level public API (`Specs/`: 31 before the skills API, 21 for it;
-> public functions that no other verified function calls), 36 about the intermediate public
-> functions that a top-level one calls (with their corollaries and compositions) and the skills
-> model, 53 about private, crate-internal or patch-only functions and 116 are laws of the trusted
-> models (these three in `../proofs/Proofs/Internal/`): 257 restated theorems (the lemmas about the
-> patch-04 models, `../proofs/Proofs/External/Skill.lean`, are proved but not restated). The public
+> functions of `request_state.rs` (R01–R15), the 20 public functions of `skill.rs` (K01–K20), the
+> OAuth metadata-address resolver (N01, N03–N11), the OAuth metadata-URL and issuer checks
+> (A04–A10), the SEP-2243 header-value encoding (G01–G04) and the 75 public elicitation schema
+> builders of `elicitation_schema.rs` (X01–X75), that the translated call does not panic and returns
+> what the statement says. Phase 2, 13 of the `skill.rs` functions, N01, N08 and 65 of the
+> elicitation builders are upstream `7caec76` unmodified; the others are about a copy with
+> translation patches (01 for Phase 1 and R01–R08, 03 for R09–R15, 04 for K05–K07 and K13–K16, 05
+> for the resolver, 06 for A04–A10, 07 for G01–G04, 08 for X29, X32, X33, X35–X38, X40, X74, X75).
+> 138 guarantees are about the top-level public API (`Specs/`: 31 before the skills API, 21 for it,
+> 86 for the elicitation builders; public functions that no other verified function calls), 59
+> about the intermediate public functions that a top-level one calls (with their corollaries and
+> compositions) and the skills and elicitation models, 234 about private, crate-internal or
+> patch-only functions and 117 are laws of the trusted models (these three in
+> `../proofs/Proofs/Internal/`): 548 restated theorems (the lemmas about the patch-04 to patch-08
+> models in `../proofs/Proofs/External/` are proved but not all restated). The public
 > `request_state.rs` API is covered except 2 of its 17 public functions (R16–R17 `seal_json*`,
 > excluded, blocked upstream); R09–R15 were signed off by the spec owner on 2026-11-25; the
-> `skill.rs` API is covered completely, signed off by the spec owner on 2026-11-25. Main trust
-> items: Charon/Aeneas/Lean, the translated configuration, patches 01, 03 and 04, the hand-written
-> models (including the one clock reading of `open`, `open_json` and `seal`, and the opaque SHA-256,
-> NFKC and General_Category functions); no native-code assumption remains (35 were locked until the
-> Aeneas upgrade of 2026-11-24, which is reviewed and re-signed by the spec owner 2026-11-24). Two
-> bugs found: H7 (`async_rw` method lists) and H8 (`240.0.0.0/4` not blocked); none in `skill.rs`.
+> `skill.rs` API is covered completely, signed off on 2026-11-25; the 75 elicitation targets
+> X01–X75 completely, signed off and proved on 2026-11-28 (not translated: the float `NumberSchema`
+> methods, the small enum constructors and setters, `from_json_schema`, `from_type`; see "Not
+> covered"). Main
+> trust items: Charon/Aeneas/Lean, the translated configuration, patches 01 and 03–08, the
+> hand-written models (including the one clock reading of `open`, `open_json` and `seal`, and the
+> opaque SHA-256, NFKC and General_Category functions); no native-code assumption remains (35 were
+> locked until the Aeneas upgrade of 2026-11-24, which is reviewed and re-signed by the spec owner
+> 2026-11-24). Sixteen bugs found (H7–H20, H22, H23; `../README.md`, "Bugs found"), four of them
+> (H19, H20, H22, H23) in the elicitation builders; none in the request-state codec or `skill.rs`.
+> H21 is a recorded behaviour, not a bug (decision XS7).
 
 **What, against what.** Each guarantee below is a Lean theorem about the
 [Aeneas](https://github.com/AeneasVerif/aeneas) translation of the Rust code of `rmcp` (Charon
@@ -65,7 +74,8 @@ verified too; their statements are under "Internal guarantees", "Intermediate pu
 
 File [`Specs/Model.lean`](Specs/Model.lean) (`crates/rmcp/src/model.rs`) unless noted. The only
 premises in this first table are the size premises of M13/M14 (met by every Rust `String`) and
-of their failing-case companions; the request-state and skills tables below have their own.
+of their failing-case companions; the request-state, skills and elicitation tables below have
+their own.
 
 | ID | Rust function | Guarantee | Assumptions | Lean theorem |
 |---|---|---|---|---|
@@ -209,6 +219,144 @@ General_Category functions appear only unopened, as the values the Rust code com
 | K05 | `from_bytes` (with the model) | The entry's digest is well-formed (`isSha256Digest`), so `validate` never reports it as `MalformedDigest`. | caller code; not covered: caller side effects, SHA-256 at `2^61` bytes | [`…SkillResource.isSha256Digest_from_bytes`](Specs/Model/Skill.lean) |
 | K06 | `verify` (corollary) | `Ok(())` exactly when the length is `size` and `sha256Digest bytes` is the digest. | none; not covered: SHA-256 at `2^61` bytes | [`…SkillResource.verify_eq_ok_iff`](Specs/Model/Skill.lean) |
 
+**Elicitation schema builders, top-level public API** —
+[`Specs/Model/ElicitationSchema.lean`](Specs/Model/ElicitationSchema.lean)
+(`crates/rmcp/src/model/elicitation_schema.rs`; of the 75 public targets X01–X75, the 64
+top-level ones with their failing cases and the compositions of top-level functions: 86 theorems;
+the 11 intermediate targets X01, X02, X14, X16, X22, X25, X30, X46, X47, X48, X74, their failing
+cases and corollaries, the compositions that involve them, the `Default` impl of
+`EnumSchemaBuilder<SingleSelect>` and 3 model laws are under "Internal guarantees"). 65 targets
+are about the **unmodified** source (linkage `ORIGINAL`, checked by
+`scripts/check-original-linkage.sh`); X29, X32, X33, X35–X38, X40, X74 and X75 about the copy
+with translation patch 08
+([`../trusted/patches/08-elicitation-schema.patch`](../trusted/patches/08-elicitation-schema.patch):
+a private opaque module `prim` with the original `format!` and `keys().cloned().collect()`,
+error literals built with `to_owned`, loops with early return written with `iter().all`, and a
+translated helper `const_titles` for the `zip`/`map`/`collect` chain), signed off by the spec
+owner on 2026-11-28 (decisions XS1–XS6). Rust functions are `rmcp::model::elicitation_schema::…`.
+Expected results are definitions of [`Defs/ElicitationSchema.lean`](Defs/ElicitationSchema.lean):
+the default schemas and builders (`defaultStringSchema`, `newEnumSchemaBuilder`,
+`emptyElicitationSchemaBuilder`, …); `constTitles` the titled options (the `i`-th title with the
+`i`-th value, as many as the shorter list); `multiSelectDefaultError?`, `minItemsError?`,
+`maxItemsError?` the first failing check of the multi-select setters in the Rust order;
+`PropertyInserted` "property `n` set to `v`, every other lookup unchanged, sorted if the map was";
+`ValidEnumSchemaBuilder` (titled builders have as many titles as values, defaults are enum values)
+and `ValidMultiSelectBuilder` (also min ≤ max and a non-empty default within the bounds), true
+invariants of the enum builders, whose fields are private; `ConsistentEnumSchema` and
+`ConsistentElicitationSchema` what a built schema satisfies. Floats (`NumberSchema`) are only
+moved, never inspected (the float rule, decision XS2).
+
+As for the skills table, the assumptions are written in words. **Premises** (the caller must ensure
+them): **caller code** — the caller's `Into` conversion or `FnOnce` closure (applied to the default
+schema) returns the value the statement names; **required list fits** — the required list has fewer
+than `usize::MAX` names (the Aeneas `Vec::push` model; every Rust `Vec<String>` does); **properties
+fit** — `24 * n ≤ isize::MAX` for `n` properties (the `collect` of the key list; every Rust map
+does; on the error path of `build` induced by patch 08); **`min ≤ max`** — for `length`, `range` and
+the integer helpers, which `assert!` it (their failing cases cover `min > max`); **required names
+exist** (`RequiredPropertiesExist`) — every required name is a property: **not** an invariant (the
+builder's fields are `pub`, and `mark_required` appends any name, H20), so `build_unchecked` states
+it as a premise and its failing case covers the rest; the empty builder meets it and the property
+helpers keep it (internal model laws); **valid enum builder**, **valid multi-select builder** — the
+invariants above, in the compositions only. No statement assumes the property map sorted; sortedness
+is carried as "sorted before, sorted after" (decision XS1). **Not covered** (inherited exceptions,
+not premises): **caller side effects** — a caller conversion or closure with side effects or reading
+global state; **allocation** — allocation failure, in any model; **unsorted map** — an entry list
+that is not sorted by key (no Rust map) is handled by the model's linear insertion; **capacity** —
+the `one_of`/`any_of` vectors may get another capacity than upstream (patch 08); **panic message** —
+the message of `build_unchecked`'s `expect` is not modelled. Bugs H19, H20, H22, H23 are marked in
+the rows (formal/README.md "Bugs found"); H21 in the rows (the single setters accept inconsistent
+bounds and defaults) is a recorded behaviour, not a bug (decision XS7); `with_required` and the
+enum-schema helpers storing unchecked values are recorded behaviours, not bugs (decision XS4).
+
+| ID | Rust function | Guarantee | Assumptions | Lean theorem |
+|---|---|---|---|---|
+| X03 | `StringSchema::uri` | The default string schema with format `Uri`. | none | [`Theorems.elicitation_schema.StringSchema.uri`](Specs/Model/ElicitationSchema.lean) |
+| X04 | `StringSchema::date` | The default string schema with format `Date`. | none | [`…StringSchema.date`](Specs/Model/ElicitationSchema.lean) |
+| X05 | `StringSchema::date_time` | The default string schema with format `DateTime`. | none | [`…StringSchema.date_time`](Specs/Model/ElicitationSchema.lean) |
+| X06 | `StringSchema::title` | Title set to `title.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…StringSchema.title`](Specs/Model/ElicitationSchema.lean) |
+| X07 | `StringSchema::description` | Description set to `description.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…StringSchema.description`](Specs/Model/ElicitationSchema.lean) |
+| X08 | `StringSchema::with_length` | `Ok` with both length bounds exactly when `min ≤ max`; else `Err("min_length must be <= max_length")`. | none | [`…StringSchema.with_length`](Specs/Model/ElicitationSchema.lean) |
+| X09 | `StringSchema::length` | Both length bounds set. | `min ≤ max` | [`…StringSchema.length`](Specs/Model/ElicitationSchema.lean) |
+| X09 | `StringSchema::length` (failing case) | Panics (`assert!`). | `min > max` | [`…StringSchema.length_fail`](Specs/Model/ElicitationSchema.lean) |
+| X10 | `StringSchema::min_length` | Minimum length set, other fields unchanged (unchecked, H21). | none | [`…StringSchema.min_length`](Specs/Model/ElicitationSchema.lean) |
+| X11 | `StringSchema::max_length` | Maximum length set, other fields unchanged (unchecked, H21). | none | [`…StringSchema.max_length`](Specs/Model/ElicitationSchema.lean) |
+| X12 | `StringSchema::format` | Format set, other fields unchanged. | none | [`…StringSchema.format`](Specs/Model/ElicitationSchema.lean) |
+| X13 | `StringSchema::with_default` | Default set to `default.into()`, other fields unchanged (unchecked, H21). | caller code; not covered: caller side effects | [`…StringSchema.with_default`](Specs/Model/ElicitationSchema.lean) |
+| X15 | `IntegerSchema::with_range` | `Ok` with both bounds exactly when `min ≤ max`; else `Err("minimum must be <= maximum")`. | none | [`…IntegerSchema.with_range`](Specs/Model/ElicitationSchema.lean) |
+| X17 | `IntegerSchema::minimum` | Minimum set, other fields unchanged (unchecked, H21). | none | [`…IntegerSchema.minimum`](Specs/Model/ElicitationSchema.lean) |
+| X18 | `IntegerSchema::maximum` | Maximum set, other fields unchanged (unchecked, H21). | none | [`…IntegerSchema.maximum`](Specs/Model/ElicitationSchema.lean) |
+| X19 | `IntegerSchema::title` | Title set to `title.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…IntegerSchema.title`](Specs/Model/ElicitationSchema.lean) |
+| X20 | `IntegerSchema::description` | Description set to `description.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…IntegerSchema.description`](Specs/Model/ElicitationSchema.lean) |
+| X21 | `IntegerSchema::with_default` | Default set, other fields unchanged (unchecked, H21). | none | [`…IntegerSchema.with_default`](Specs/Model/ElicitationSchema.lean) |
+| X23 | `BooleanSchema::title` | Title set to `title.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…BooleanSchema.title`](Specs/Model/ElicitationSchema.lean) |
+| X24 | `BooleanSchema::description` | Description set to `description.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…BooleanSchema.description`](Specs/Model/ElicitationSchema.lean) |
+| X26 | `EnumSchemaBuilder<T>::title` | Title set to `value.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…EnumSchemaBuilder.title`](Specs/Model/ElicitationSchema.lean) |
+| X27 | `EnumSchemaBuilder<T>::description` | Description set to `value.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…EnumSchemaBuilder.description`](Specs/Model/ElicitationSchema.lean) |
+| X28 | `EnumSchemaBuilder<T>::untitled` | Untitled with no titles, other fields unchanged. | none | [`…EnumSchemaBuilder.untitled`](Specs/Model/ElicitationSchema.lean) |
+| X29 | `EnumSchemaBuilder<T>::enum_titles` | `Ok`, titled with `titles`, exactly when as many titles as values; else `Err(titlesMismatchMsg …)`. | none; not covered: allocation | [`…EnumSchemaBuilder.enum_titles`](Specs/Model/ElicitationSchema.lean) |
+| X31 | `EnumSchemaBuilder<SingleSelect>::multiselect` | The multi-select builder with the same values, titles, title, description; no bounds or default. | none | [`…EnumSchemaBuilderSingleSelect.multiselect`](Specs/Model/ElicitationSchema.lean) |
+| X32 | `EnumSchemaBuilder<SingleSelect>::with_default` | `Ok` with default `[v]` exactly when `v = default_value.into()` is an enum value; else `Err` with its message. | caller code; not covered: caller side effects, allocation | [`…EnumSchemaBuilderSingleSelect.with_default`](Specs/Model/ElicitationSchema.lean) |
+| X33 | `EnumSchemaBuilder<SingleSelect>::build` | The single-select schema: title, description, last default; titled options `constTitles` or the values. | none; not covered: allocation, capacity | [`…EnumSchemaBuilderSingleSelect.build`](Specs/Model/ElicitationSchema.lean) |
+| X34 | `EnumSchemaBuilder<MultiSelect>::single_select` | The single-select builder with the same values, titles, title, description; no bounds or default. | none | [`…EnumSchemaBuilderMultiSelect.single_select`](Specs/Model/ElicitationSchema.lean) |
+| X35 | `EnumSchemaBuilder<MultiSelect>::with_default` | `Ok` with the defaults exactly when `multiSelectDefaultError?` is `none`; else `Err` with the first failing check (duplicates accepted, H22). | none; not covered: allocation | [`…EnumSchemaBuilderMultiSelect.with_default`](Specs/Model/ElicitationSchema.lean) |
+| X36 | `EnumSchemaBuilder<MultiSelect>::min_items` | `Ok` with the minimum exactly when `minItemsError?` is `none`; else `Err` with the first failing check (H22). | none; not covered: allocation | [`…EnumSchemaBuilderMultiSelect.min_items`](Specs/Model/ElicitationSchema.lean) |
+| X37 | `EnumSchemaBuilder<MultiSelect>::max_items` | `Ok` with the maximum exactly when `maxItemsError?` is `none`; else `Err` with the first failing check (a maximum above the number of values is not checked). | none; not covered: allocation | [`…EnumSchemaBuilderMultiSelect.max_items`](Specs/Model/ElicitationSchema.lean) |
+| X38 | `EnumSchemaBuilder<MultiSelect>::build` | The multi-select schema: title, description, item bounds, non-empty default; titled options `constTitles` or the values. | none; not covered: allocation, capacity | [`…EnumSchemaBuilderMultiSelect.build`](Specs/Model/ElicitationSchema.lean) |
+| X39 | `EnumSchema::builder` | The builder for `values` with nothing else set (`newEnumSchemaBuilder values`). | none | [`…EnumSchema.builder`](Specs/Model/ElicitationSchema.lean) |
+| X40 | `ElicitationSchema::new` | The schema with these properties, property order their names, nothing else set. | properties fit; not covered: allocation | [`…ElicitationSchema.new`](Specs/Model/ElicitationSchema.lean) |
+| X40 | `ElicitationSchema::new` (failing case) | Panics in the model (`prim::sorted_keys`; no Rust map is that large). | properties do not fit (model only) | [`…ElicitationSchema.new_fail`](Specs/Model/ElicitationSchema.lean) |
+| X41 | `ElicitationSchema::with_required` | Required list set (`Some`, even if empty; names unchecked), other fields unchanged. | none | [`…ElicitationSchema.with_required`](Specs/Model/ElicitationSchema.lean) |
+| X42 | `ElicitationSchema::with_title` | Title set to `title.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…ElicitationSchema.with_title`](Specs/Model/ElicitationSchema.lean) |
+| X43 | `ElicitationSchema::with_description` | Description set to `description.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…ElicitationSchema.with_description`](Specs/Model/ElicitationSchema.lean) |
+| X44 | `ElicitationSchema::with_schema` | Dialect (`$schema`) set to `schema.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…ElicitationSchema.with_schema`](Specs/Model/ElicitationSchema.lean) |
+| X45 | `ElicitationSchema::builder` | The empty builder (`emptyElicitationSchemaBuilder`). | none | [`…ElicitationSchema.builder`](Specs/Model/ElicitationSchema.lean) |
+| X49 | `ElicitationSchemaBuilder::string_property` | Property `n` set to `String(s)`, `s` the closure on the default; not required (H23). | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.string_property`](Specs/Model/ElicitationSchema.lean) |
+| X50 | `ElicitationSchemaBuilder::required_string_property` | `n` appended to the required list (H20), property `n` set to `String(s)`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_string_property`](Specs/Model/ElicitationSchema.lean) |
+| X51 | `ElicitationSchemaBuilder::integer_property` | Property `n` set to `Integer(i)`, `i` the closure on the default; not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.integer_property`](Specs/Model/ElicitationSchema.lean) |
+| X52 | `ElicitationSchemaBuilder::required_integer_property` | `n` appended to the required list (H20), property `n` set to `Integer(i)`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_integer_property`](Specs/Model/ElicitationSchema.lean) |
+| X53 | `ElicitationSchemaBuilder::bool_property` | Property `n` set to `Boolean(b)`, `b` the closure on the default; not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.bool_property`](Specs/Model/ElicitationSchema.lean) |
+| X54 | `ElicitationSchemaBuilder::required_bool_property` | `n` appended to the required list (H20), property `n` set to `Boolean(b)`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_bool_property`](Specs/Model/ElicitationSchema.lean) |
+| X55 | `ElicitationSchemaBuilder::required_string` | `n` required (H20), the default string schema. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_string`](Specs/Model/ElicitationSchema.lean) |
+| X56 | `ElicitationSchemaBuilder::optional_string` | Property `n`, the default string schema, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_string`](Specs/Model/ElicitationSchema.lean) |
+| X57 | `ElicitationSchemaBuilder::required_email` | `n` required (H20), a string with format `Email`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_email`](Specs/Model/ElicitationSchema.lean) |
+| X58 | `ElicitationSchemaBuilder::optional_email` | Property `n`, a string with format `Email`, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_email`](Specs/Model/ElicitationSchema.lean) |
+| X59 | `ElicitationSchemaBuilder::required_string_with` | `n` required (H20), `String(s)` with `s` the closure on the default. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_string_with`](Specs/Model/ElicitationSchema.lean) |
+| X60 | `ElicitationSchemaBuilder::optional_string_with` | Property `n` set to `String(s)`, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_string_with`](Specs/Model/ElicitationSchema.lean) |
+| X61 | `ElicitationSchemaBuilder::required_integer` | `n` required (H20), an integer with both bounds. | caller code, required list fits, `min ≤ max`; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_integer`](Specs/Model/ElicitationSchema.lean) |
+| X61 | `ElicitationSchemaBuilder::required_integer` (failing case) | Panics (`assert!` of `range`). | `min > max` | [`…ElicitationSchemaBuilder.required_integer_fail`](Specs/Model/ElicitationSchema.lean) |
+| X62 | `ElicitationSchemaBuilder::optional_integer` | Property `n`, an integer with both bounds, not required. | caller code, `min ≤ max`; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_integer`](Specs/Model/ElicitationSchema.lean) |
+| X62 | `ElicitationSchemaBuilder::optional_integer` (failing case) | Panics (`assert!` of `range`). | `min > max` | [`…ElicitationSchemaBuilder.optional_integer_fail`](Specs/Model/ElicitationSchema.lean) |
+| X63 | `ElicitationSchemaBuilder::required_integer_with` | `n` required (H20), `Integer(i)` with `i` the closure on the default (H21). | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_integer_with`](Specs/Model/ElicitationSchema.lean) |
+| X64 | `ElicitationSchemaBuilder::optional_integer_with` | Property `n` set to `Integer(i)`, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_integer_with`](Specs/Model/ElicitationSchema.lean) |
+| X65 | `ElicitationSchemaBuilder::required_bool` | `n` required (H20), the default boolean schema. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_bool`](Specs/Model/ElicitationSchema.lean) |
+| X66 | `ElicitationSchemaBuilder::optional_bool` | Property `n`, a boolean with default `default`, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_bool`](Specs/Model/ElicitationSchema.lean) |
+| X67 | `ElicitationSchemaBuilder::required_bool_with` | `n` required (H20), `Boolean(b)` with `b` the closure on the default. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_bool_with`](Specs/Model/ElicitationSchema.lean) |
+| X68 | `ElicitationSchemaBuilder::optional_bool_with` | Property `n` set to `Boolean(b)`, not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_bool_with`](Specs/Model/ElicitationSchema.lean) |
+| X69 | `ElicitationSchemaBuilder::required_enum_schema` | `n` required (H20), `Enum(enum_schema)` stored unchecked. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_enum_schema`](Specs/Model/ElicitationSchema.lean) |
+| X70 | `ElicitationSchemaBuilder::optional_enum_schema` | Property `n` set to `Enum(enum_schema)` (unchecked), not required. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.optional_enum_schema`](Specs/Model/ElicitationSchema.lean) |
+| X71 | `ElicitationSchemaBuilder::mark_required` | `name.into()` appended to the required list, unchecked (H20), other fields unchanged. | caller code, required list fits; not covered: caller side effects, allocation | [`…ElicitationSchemaBuilder.mark_required`](Specs/Model/ElicitationSchema.lean) |
+| X71 | `ElicitationSchemaBuilder::mark_required` (failing case) | Fails in the model (`Vec::push`; no Rust `Vec` is that long). | caller code; required list of `Usize.max` names | [`…ElicitationSchemaBuilder.mark_required_fail`](Specs/Model/ElicitationSchema.lean) |
+| X72 | `ElicitationSchemaBuilder::title` | Title set to `title.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…ElicitationSchemaBuilder.title`](Specs/Model/ElicitationSchema.lean) |
+| X73 | `ElicitationSchemaBuilder::description` | Description set to `description.into()`, other fields unchanged. | caller code; not covered: caller side effects | [`…ElicitationSchemaBuilder.description`](Specs/Model/ElicitationSchema.lean) |
+| X75 | `ElicitationSchemaBuilder::build_unchecked` | The schema of X74 `build` (H19, H20). | properties fit, required names exist; not covered: allocation | [`…ElicitationSchemaBuilder.build_unchecked`](Specs/Model/ElicitationSchema.lean) |
+| X75 | `ElicitationSchemaBuilder::build_unchecked` (failing case) | Panics exactly when the properties do not fit (model only) or a required name is not a property (message not modelled). | properties do not fit or a required name is not a property; not covered: panic message | [`…ElicitationSchemaBuilder.build_unchecked_fail`](Specs/Model/ElicitationSchema.lean) |
+| X39 | `EnumSchema::builder` (composition) | The builder meets `ValidEnumSchemaBuilder`. | none | [`…EnumSchema.builder_valid`](Specs/Model/ElicitationSchema.lean) |
+| X26 | `EnumSchemaBuilder<T>::title` (composition) | Keeps both enum builder invariants. | caller code; not covered: caller side effects | [`…EnumSchemaBuilder.title_valid`](Specs/Model/ElicitationSchema.lean) |
+| X27 | `EnumSchemaBuilder<T>::description` (composition) | Keeps both enum builder invariants. | caller code; not covered: caller side effects | [`…EnumSchemaBuilder.description_valid`](Specs/Model/ElicitationSchema.lean) |
+| X28 | `EnumSchemaBuilder<T>::untitled` (composition) | Keeps both enum builder invariants. | none | [`…EnumSchemaBuilder.untitled_valid`](Specs/Model/ElicitationSchema.lean) |
+| X29 | `EnumSchemaBuilder<T>::enum_titles` (composition) | An `Ok` result keeps both enum builder invariants. | none | [`…EnumSchemaBuilder.enum_titles_valid`](Specs/Model/ElicitationSchema.lean) |
+| X31 | `EnumSchemaBuilder<SingleSelect>::multiselect` (composition) | A valid builder gives a valid multi-select builder. | valid enum builder | [`…EnumSchemaBuilderSingleSelect.multiselect_valid`](Specs/Model/ElicitationSchema.lean) |
+| X32 | `EnumSchemaBuilder<SingleSelect>::with_default` (composition) | An `Ok` result meets `ValidEnumSchemaBuilder`. | caller code, valid enum builder; not covered: caller side effects | [`…EnumSchemaBuilderSingleSelect.with_default_valid`](Specs/Model/ElicitationSchema.lean) |
+| X33 | `EnumSchemaBuilder<SingleSelect>::build` (composition) | The schema is consistent (`ConsistentEnumSchema`: the default is an enum value); titled options carry the values and titles in order. | valid enum builder; not covered: allocation, capacity | [`…EnumSchemaBuilderSingleSelect.build_consistent`](Specs/Model/ElicitationSchema.lean) |
+| X34 | `EnumSchemaBuilder<MultiSelect>::single_select` (composition) | The result meets `ValidEnumSchemaBuilder`. | valid enum builder | [`…EnumSchemaBuilderMultiSelect.single_select_valid`](Specs/Model/ElicitationSchema.lean) |
+| X35 | `EnumSchemaBuilder<MultiSelect>::with_default` (composition) | An `Ok` result meets `ValidMultiSelectBuilder`. | valid multi-select builder | [`…EnumSchemaBuilderMultiSelect.with_default_valid`](Specs/Model/ElicitationSchema.lean) |
+| X36 | `EnumSchemaBuilder<MultiSelect>::min_items` (composition) | An `Ok` result meets `ValidMultiSelectBuilder`. | valid multi-select builder | [`…EnumSchemaBuilderMultiSelect.min_items_valid`](Specs/Model/ElicitationSchema.lean) |
+| X37 | `EnumSchemaBuilder<MultiSelect>::max_items` (composition) | An `Ok` result meets `ValidMultiSelectBuilder`. | valid multi-select builder | [`…EnumSchemaBuilderMultiSelect.max_items_valid`](Specs/Model/ElicitationSchema.lean) |
+| X38 | `EnumSchemaBuilder<MultiSelect>::build` (composition) | The schema is consistent (`ConsistentEnumSchema`: min ≤ max, the default non-empty, made of enum values and within the bounds) (H22); titled options carry the values and titles in order. | valid multi-select builder; not covered: allocation, capacity | [`…EnumSchemaBuilderMultiSelect.build_consistent`](Specs/Model/ElicitationSchema.lean) |
+| X40 | `ElicitationSchema::new` (composition) | The schema is consistent (`ConsistentElicitationSchema`: no required list, property order the property names). | properties fit; not covered: allocation | [`…ElicitationSchema.new_consistent`](Specs/Model/ElicitationSchema.lean) |
+| X75 | `ElicitationSchemaBuilder::build_unchecked` (composition) | The schema is consistent (`ConsistentElicitationSchema`: required names, if any, are properties; property order the property names) (H19, H20). | properties fit, required names exist; not covered: allocation | [`…ElicitationSchemaBuilder.build_unchecked_consistent`](Specs/Model/ElicitationSchema.lean) |
+| X45+X75 | `ElicitationSchema::builder`, then `build_unchecked` | No panic; no property and no required list (H19). | none | [`…ElicitationSchema.builder_build_unchecked_empty`](Specs/Model/ElicitationSchema.lean) |
+
 ## Internal guarantees
 
 Statements about functions that are not top-level public rmcp API. First the intermediate public
@@ -287,6 +435,50 @@ top-level public API" above.
 "Model" rows are statements about the definitions of `Defs/Skill.lean` only (no Rust call); a
 reader can use them to check that the expected results say what the Rust documentation says.
 
+*Elicitation schema* —
+[`Internal/Model/ElicitationSchema.lean`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean)
+(`elicitation_schema.rs`). Called by: X01 `StringSchema::new` by X49, X50, X55, X56, X59, X60;
+X02 `StringSchema::email` by X57, X58; X14 `IntegerSchema::new` by X51, X52, X61–X64; X16
+`IntegerSchema::range` by X61, X62; X22 `BooleanSchema::new` by X53, X54, X65–X68; X25
+`BooleanSchema::with_default` by X66; X30 `EnumSchemaBuilder::<SingleSelect>::new` by X39
+`EnumSchema::builder`; the `Default` impl of `EnumSchemaBuilder<SingleSelect>` (public, not a
+target) by X30; X46 `ElicitationSchemaBuilder::new` by X45 `ElicitationSchema::builder`; X47
+`property` by X56, X58, X60, X62, X64, X66, X68, X70; X48 `required_property` by X55, X57, X59,
+X61, X63, X65, X67, X69; X74 `build` by X75 `build_unchecked`. With their failing cases and the
+corollaries of X47 and X48 (the exact entry list through the `BTreeMap` insertion model), the
+compositions that involve an intermediate function and the 3 consequences of the model
+`Defs.ElicitationSchema` (`model` rows, no Rust call): 23 theorems. Keys as in "Elicitation schema
+builders, top-level public API" above.
+
+| ID | Rust function | Guarantee | Assumptions | Lean theorem |
+|---|---|---|---|---|
+| X01 | `StringSchema::new` | The default string schema (`defaultStringSchema`). | none | [`Theorems.elicitation_schema.StringSchema.new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X02 | `StringSchema::email` | The default string schema with format `Email`. | none | [`…StringSchema.email`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X14 | `IntegerSchema::new` | The default integer schema (`defaultIntegerSchema`). | none | [`…IntegerSchema.new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X16 | `IntegerSchema::range` | Both bounds set. | `min ≤ max` | [`…IntegerSchema.range`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X16 | `IntegerSchema::range` (failing case) | Panics (`assert!`). | `min > max` | [`…IntegerSchema.range_fail`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X22 | `BooleanSchema::new` | The default boolean schema (`defaultBooleanSchema`). | none | [`…BooleanSchema.new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X25 | `BooleanSchema::with_default` | Default set, other fields unchanged. | none | [`…BooleanSchema.with_default`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X30 | `EnumSchemaBuilder<SingleSelect>::new` | The builder for `values` with nothing else set (`newEnumSchemaBuilder values`). | none | [`…EnumSchemaBuilderSingleSelect.new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X46 | `ElicitationSchemaBuilder::new` | The empty builder (`emptyElicitationSchemaBuilder`). | none | [`…ElicitationSchemaBuilder.new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X47 | `ElicitationSchemaBuilder::property` | Property `name.into()` set to `schema` (`PropertyInserted`), other fields unchanged. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.property`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X47 | `ElicitationSchemaBuilder::property` (corollary) | The entries are `ExtModel.mapInsert n schema self.properties.entries`. | caller code; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.property_entries_eq_mapInsert`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X48 | `ElicitationSchemaBuilder::required_property` | `name.into()` appended to the required list (H20) and set to `schema`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_property`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X48 | `ElicitationSchemaBuilder::required_property` (corollary) | The entries are `ExtModel.mapInsert n schema self.properties.entries`. | caller code, required list fits; not covered: caller side effects, unsorted map, allocation | [`…ElicitationSchemaBuilder.required_property_entries_eq_mapInsert`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X48 | `ElicitationSchemaBuilder::required_property` (failing case) | Fails in the model (`Vec::push`; no Rust `Vec` is that long). | caller code; required list of `Usize.max` names | [`…ElicitationSchemaBuilder.required_property_fail`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X74 | `ElicitationSchemaBuilder::build` | `Ok` exactly when `RequiredPropertiesExist` (H19, H20), with the builder's fields and property order; else `Err` with its message. | properties fit; not covered: allocation | [`…ElicitationSchemaBuilder.build`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X74 | `ElicitationSchemaBuilder::build` (failing case) | Panics in the model (`prim::sorted_keys`; no Rust map is that large). | properties do not fit (model only) | [`…ElicitationSchemaBuilder.build_fail`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X30 | `EnumSchemaBuilder<SingleSelect>::new` (composition) | The builder meets `ValidEnumSchemaBuilder`. | none | [`…EnumSchemaBuilderSingleSelect.new_valid`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| — | `impl Default for EnumSchemaBuilder<SingleSelect>` | `newEnumSchemaBuilder` of the empty vector, meeting `ValidEnumSchemaBuilder`. | none | [`…EnumSchemaBuilderSingleSelect.default_valid`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X74 | `ElicitationSchemaBuilder::build` (composition) | Every `Ok` schema is `ConsistentElicitationSchema` (H19, H20). | properties fit; not covered: allocation | [`…ElicitationSchemaBuilder.build_consistent`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| X46+X74 | `new`, then `build` | `Ok`, no property and no required list (H19). | none | [`…ElicitationSchemaBuilder.build_new`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| model | — | After property `n` is inserted, a required list whose names are all properties, with `n` appended, still names only properties (why the property helpers keep “required names exist”). | none | [`…PropertyInserted.forall_mem_propertyNames_append`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| model | — | The empty builder meets “required names exist” (it has no required name). | none | [`…requiredPropertiesExist_emptyElicitationSchemaBuilder`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+| model | — | The map of the empty builder is sorted. | none | [`…keysSorted_emptyElicitationSchemaBuilder_properties`](../proofs/Proofs/Internal/Model/ElicitationSchema.lean) |
+
+"Model" rows are statements about the definitions of `Defs/ElicitationSchema.lean` only (no
+Rust call).
+
 **Model, crate-internal** — [`Internal/Model.lean`](../proofs/Proofs/Internal/Model.lean)
 (`model.rs`, `pub(crate)`).
 
@@ -357,7 +549,7 @@ metadata-URL SSRF check `is_allowed_metadata_url` (A06 below) and the resolved-a
 
 **OAuth metadata-URL and issuer checks (patch 06)** —
 [`Internal/Transport/Auth/AuthMetadata.lean`](../proofs/Proofs/Internal/Transport/Auth/AuthMetadata.lean)
-(private functions of `AuthorizationManager`; 81 statements, signed off and proved 2026-11-27;
+(private functions of `AuthorizationManager`; 79 statements, signed off and proved 2026-11-27;
 readable model `Defs.AuthMetadata`). The main guarantee per target is below; the file also has the
 failure companions (showing where each premise is needed), the laws of the model and the compositions
 (e.g. every URL `resolve_resource_metadata_url` returns is HTTP(S) and same-origin or allowed by
@@ -456,7 +648,7 @@ open of request-state tokens. Theorem names are `Theorems.request_state_wire.<fu
 | — | `frame_roundtrip` | `open_frame(frame(expiry, payload), now_ms)` is `Ok(payload)`. | frame fits in `usize::MAX` bytes; `expiry` is 0 or `now_ms ≤ expiry` | [`Theorems.request_state_wire.frame_roundtrip`](../proofs/Proofs/Internal/Model/RequestStateWire.lean) | `seal_at` then `open_authenticated_body` (patched copy) |
 
 **Laws of the trusted models** — [`Internal/External.lean`](../proofs/Proofs/Internal/External.lean)
-(116 theorems `Theorems.External.*`). They state what the models in `formal/trusted/` compute
+(117 theorems `Theorems.External.*`). They state what the models in `formal/trusted/` compute
 (Base64url round trip and canonicity, UTF-8, the HMAC/Base64 `prim` functions, `Option`,
 `Result`, `str`, `String`, `HashMap`, `zeroize`, slices and ranges, `i64::from_str` equal to
 `Defs.parseI64`, `Ipv4Addr`/`Ipv6Addr` predicates), so that a reviewer can compare them with the
@@ -594,6 +786,12 @@ Rust documentation. Used by: the proofs of all statements above.
   and General_Category are opaque; no statement assumes collision freedom); the "not covered"
   cases of the skills table (caller side effects, SHA-256 at `2^61` bytes, the `HashSet` random
   source, the `serde_json` feature `preserve_order`).
+- For `elicitation_schema.rs`: the `NumberSchema` methods and the `number` builder helpers (floats,
+  decision XD3), the small constructors `ConstTitle::new`, `LegacyEnumSchema::new`,
+  `TitledSingleSelectEnumSchema::new`, `UntitledItems::new`, `TitledItems::new` and the
+  `TitledMultiSelectEnumSchema` setters (not targets), `from_json_schema`, `from_type`, the `serde`
+  impls and the wire conversion; the "not covered" cases of the elicitation table (caller side
+  effects, allocation, unsorted map, capacity, panic message).
 - Allocation failure, and inputs covered by the stated exceptions above (for those a statement
   may promise a result where Rust panics).
 - The full MCP protocol: the method lists are core protocol only (extensions are out of scope),
@@ -612,3 +810,10 @@ the statements describe the code as it is):
 - **H8:** `is_disallowed_metadata_ipv4` (`auth.rs`) does not block the reserved range
   `240.0.0.0/4` (except `255.255.255.255`), so such an address passes the metadata-URL SSRF
   check and the resolved-address filter.
+- **H9–H20, H22, H23:** recorded in [`../README.md`, "Bugs found"](../README.md#bugs-found): H9–H16
+  in the OAuth metadata checks (`auth.rs`, `auth/metadata_resolver.rs`), H17–H18 in the SEP-2243
+  header-value encoding (`mcp_headers.rs`), H19, H20, H22, H23 in the elicitation schema builders
+  (`elicitation_schema.rs`: `build` accepts an empty schema; duplicate and not-yet-existing required
+  names; multi-select `min_items` above the number of values and duplicate defaults;
+  `string_property` not required). H21 (unchecked single bounds and defaults) is a recorded
+  behaviour, not a bug (decision XS7).

@@ -5,7 +5,9 @@ Authors: Hoang Le Truong
 -/
 module
 public import Rmcp.Funs
+public import Defs.ElicitationSchema
 public import Proofs.External.Skill
+public import Proofs.External.String
 public import Proofs.External.WP
 
 @[expose] public section
@@ -250,3 +252,83 @@ theorem model.elicitation_schema.prim.sorted_keys_eq_fail
     model.elicitation_schema.prim.sorted_keys properties = fail Error.panic := by
   rw [model.elicitation_schema.prim.sorted_keys]
   exact collectVec_eq_fail 24 _ (by rw [List.length_map]; exact hlen)
+
+/-! ## Helpers for the elicitation schema targets
+
+Lemmas about the external models that the spec theorems of
+`Proofs.Model.ElicitationSchema.*` use: `BTreeMap::insert` with `String` keys as an equation (no
+sortedness premise), `prim::sorted_keys`, `str::to_owned` of a literal, `vec::IntoIter::next` and
+Aeneas `loop`. (The `String` order as a list order, lookups after `ExtModel.mapInsert`,
+`<[String]>::contains` and the `usize as u64` cast are the existing lemmas of the
+modules `Proofs.Model.Skill.Verify`, `Proofs.Transport.MetadataResolver.Common` and
+`Proofs.Model.RequestStateWire.Common`, used from `Proofs.Model.ElicitationSchema.Common`.) -/
+
+namespace Proofs.External.ElicitationSchema
+
+open ExtModel Proofs.External.Skill Defs.ElicitationSchema
+
+/-- `BTreeMap::insert` with `String` keys, as an equation, for any entry list (no sortedness
+premise): the old value at `k` and the entries `mapInsert k v self.entries`. -/
+theorem insert_string_eq {V A : Type} (inst : rmcp.core.alloc.AllocatorClone A)
+    (self : alloc.collections.btree.map.BTreeMap String V A) (k : String) (v : V) :
+    alloc.collections.btree.map.BTreeMap.insert inst
+        rmcp.alloc.string.String.Insts.CoreCmpOrd self k v =
+      ok ((mapInsert k v self.entries).1, { entries := (mapInsert k v self.entries).2 }) := by
+  simp only [alloc.collections.btree.map.BTreeMap.insert, btreeInsert_stringOrd_eq_ok, bind_ok]
+  generalize mapInsert k v self.entries = p
+  rcases p with ⟨o, r⟩
+  rfl
+
+/-- The key list of a map that fits (`PropertiesFit`), as an equation. -/
+theorem sorted_keys_eq_ok
+    (properties : alloc.collections.btree.map.BTreeMap String
+      rmcp.model.elicitation_schema.PrimitiveSchemaDefinition alloc.alloc.Global)
+    (h : PropertiesFit properties) :
+    ∃ names : alloc.vec.Vec String,
+      model.elicitation_schema.prim.sorted_keys properties = ok names ∧
+        names.val = propertyNames properties :=
+  Proofs.External.WP.exists_ok_of_spec
+    (model.elicitation_schema.prim.sorted_keys_spec properties h)
+
+/-- `to_owned` of a string literal is the literal. -/
+theorem to_owned_toStr (s : String) (h : s.toByteArray.size ≤ U32.max) :
+    Str.Insts.AllocBorrowToOwnedString.to_owned (toStr s h) = ok s := by
+  obtain ⟨r, hr, hrv⟩ := Proofs.External.WP.exists_ok_of_spec
+    (Str.Insts.AllocBorrowToOwnedString.to_owned_spec (toStr s h) s
+      (Proofs.External.Utf8.toStr_val s h))
+  rw [hr, hrv]
+
+/-! The four lemmas below are generic (`vec::IntoIter::next` and the Aeneas `loop`, not specific to
+this file); they are candidates for a shared module. -/
+
+/-- `vec::IntoIter::next` on an exhausted iterator. -/
+theorem next_eq_none {T : Type} (it : alloc.vec.into_iter.IntoIter T) (h : it.val = []) :
+    alloc.vec.into_iter.IteratorIntoIter.next it = ok (none, it) := by
+  unfold alloc.vec.into_iter.IteratorIntoIter.next
+  split
+  · rfl
+  · rename_i hd tl heq; rw [h] at heq; cases heq
+
+/-- `vec::IntoIter::next` on a non-empty iterator: its head, and the iterator over its tail. -/
+theorem next_eq_some {T : Type} (it : alloc.vec.into_iter.IntoIter T) (hd : T) (tl : List T)
+    (h : it.val = hd :: tl) :
+    ∃ it', alloc.vec.into_iter.IteratorIntoIter.next it = ok (some hd, it') ∧ it'.val = tl := by
+  unfold alloc.vec.into_iter.IteratorIntoIter.next
+  split
+  · rename_i heq; rw [h] at heq; cases heq
+  · rename_i hd' tl' heq
+    rw [h] at heq
+    cases heq
+    exact ⟨_, rfl, alloc.vec.Vec.from_val ..⟩
+
+/-- An Aeneas `loop` whose body continues with `y` from `x` is the loop from `y`. -/
+theorem loop_eq_of_cont {α β : Type} (body : α → Result (ControlFlow α β)) (x y : α)
+    (h : body x = ok (.cont y)) : loop body x = loop body y := by
+  rw [loop, h, bind_ok]
+
+/-- An Aeneas `loop` whose body stops with `y` from `x` returns `y`. -/
+theorem loop_eq_of_done {α β : Type} (body : α → Result (ControlFlow α β)) (x : α) (y : β)
+    (h : body x = ok (.done y)) : loop body x = ok y := by
+  rw [loop, h, bind_ok]
+
+end Proofs.External.ElicitationSchema

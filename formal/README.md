@@ -34,14 +34,16 @@ in a spec file with a `#guard_msgs` axiom check.
 | | R09–R15 (and internal R10a, R10b) | `seal`, `seal_with`, `with_rs1_signing`, `with_rs1_fallback`, `open_json`, `open_json_with`, `new_with_keyring`; R10a the private `seal_at` at an explicit time, R10b `seal_at` then `open_at` | `patch-03` |
 | Public `skill.rs` API | K01–K20 (51 statements) | all twenty public functions of `model/skill.rs` | K01–K04, K08–K12, K17–K20 `ORIGINAL`; K05–K07, K13–K16 `patch-04` |
 | Metadata address resolver | N01, N03–N11 (64 statements) | `AddressClass::of` (N01), `MetadataAddressResolver::{new, with_lookup, with_proxy_hosts, allowing_private_addresses, allows_url, is_allowed}`, its `Resolve::resolve` (address filtering part), `literal_ip`, `normalize_host` (N11), and `AuthorizationManager::is_loopback_metadata_host` | N01, N08 `ORIGINAL`; the others `patch-05` |
-| OAuth metadata-URL and issuer checks | A04–A10 (81 statements) | `AuthorizationManager::{is_http_url, is_disallowed_metadata_host, is_allowed_metadata_url, resolve_resource_metadata_url}`, the checks of `validate_authorization_response_issuer`, `validate_authorization_metadata_issuer`, `validate_resource_metadata_resource` (as the patch-06 helpers `check_*`; the one-line `validate_*` wrappers are not verified), with their callees | `patch-06` |
+| OAuth metadata-URL and issuer checks | A04–A10 (79 statements) | `AuthorizationManager::{is_http_url, is_disallowed_metadata_host, is_allowed_metadata_url, resolve_resource_metadata_url}`, the checks of `validate_authorization_response_issuer`, `validate_authorization_metadata_issuer`, `validate_resource_metadata_resource` (as the patch-06 helpers `check_*`; the one-line `validate_*` wrappers are not verified), with their callees | `patch-06` |
 | SEP-2243 header-value encoding | G01–G04 (39 statements) | `transport::common::mcp_headers::{requires_base64, is_tchar, encode_header_value, decode_header_value}`, with the round trip (decode after encode gives the value back) and header safety of every encoded value | `patch-07` |
+| Elicitation schema builders | X01–X75 (109 statements) | the builders of `model/elicitation_schema.rs`: `StringSchema::{new, email, uri, date, date_time, title, description, with_length, length, min_length, max_length, format, with_default}`, `IntegerSchema::{new, with_range, range, minimum, maximum, title, description, with_default}`, `BooleanSchema::{new, title, description, with_default}`, `EnumSchemaBuilder::{title, description, untitled, enum_titles}` and the single/multi-select `new`, `multiselect`, `single_select`, `with_default`, `min_items`, `max_items`, `build`, `EnumSchema::builder`, `ElicitationSchema::{new, with_required, with_title, with_description, with_schema, builder}`, and `ElicitationSchemaBuilder::{new, property, required_property, mark_required, title, description, build, build_unchecked}` with the 22 typed property helpers X49–X70 (all but the float ones); with the builder invariants and the consistency of every built schema | X29, X32, X33, X35–X38, X40, X74, X75 `patch-08`; others `ORIGINAL` |
 
 Statements about top-level public functions (`pub` and called by no other verified function; human
 decision 2026-11-28) are in `specs/Specs/`; the statements about intermediate public functions (R05,
-R08, R10, R14, K04, K07, K12–K15, called by a top-level one), private, crate-internal and patch-only
-functions (including M06, M07, T01–T08, A01–A10, G01–G04 and the N group) and the laws of the
-external models are in `proofs/Proofs/Internal/` (see "Layout"). E05 and E06 are unassigned IDs
+R08, R10, R14, K04, K07, K12–K15 and the 11 intermediate elicitation builders X01, X02, X14, X16,
+X22, X25, X30, X46, X47, X48, X74, called by a top-level one), private, crate-internal and
+patch-only functions (including M06, M07, T01–T08, A01–A10, G01–G04 and the N group) and the laws of
+the external models are in `proofs/Proofs/Internal/` (see "Layout"). E05 and E06 are unassigned IDs
 (they belonged to `mac_v1`/`mac_v2`, which patch 01 deletes).
 
 **What `patch-0N` means for the claim.** The `patch-01` results are about upstream plus the
@@ -60,14 +62,20 @@ are empty: the project declares no trusted axiom, and no constant depends on a n
 
 ### Bugs found
 
-Twelve bugs, all in upstream `7caec76`, none **reported upstream yet** (reporting needs the project
-owner's go-ahead; H9 is to be reported privately first). The statements describe the code as it
-is. H9–H16 were found in the A04–A10 specification cycle of `auth.rs` (human decisions
-2026-11-27); their statements were signed off and proved on 2026-11-27
+Sixteen bugs (H7–H20, H22, H23), all in upstream `7caec76`, none **reported upstream yet**
+(reporting needs the project owner's go-ahead; H9 is to be reported privately first). The statements
+describe the code as it is. H9–H16 were found in the A04–A10 specification cycle of `auth.rs` (human
+decisions 2026-11-27); their statements were signed off and proved on 2026-11-27
 (`proofs/Proofs/Internal/Transport/Auth/AuthMetadata.lean`). H17–H18 (low severity) were found in
 the G01–G04 specification cycle of `transport/common/mcp_headers.rs` (human decisions 2026-11-27);
 their statements were signed off and proved on 2026-11-28
-(`proofs/Proofs/Internal/Transport/Common/McpHeaders.lean`).
+(`proofs/Proofs/Internal/Transport/Common/McpHeaders.lean`). H19, H20, H22 and H23 were found in the
+translation and specification cycle of the elicitation schema builders of
+`model/elicitation_schema.rs` (decisions XD4, XS4, XS5, 2026-11-28; confirmed by decision XS7,
+2026-11-29, which recast the suspected H21 as a recorded behaviour, not a bug; the number H21 is not
+reused, and its text is under "Recorded behaviours, not bugs" below); their statements were signed
+off and proved on 2026-11-28 (`specs/Specs/Model/ElicitationSchema.lean`,
+`proofs/Proofs/Internal/Model/ElicitationSchema.lean`).
 
 - **H7: the `async_rw` method lists miss six core MCP names.** `is_standard_method` /
   `is_standard_notification` (`crates/rmcp/src/transport/async_rw.rs` lines 396–433) do not list
@@ -131,21 +139,40 @@ their statements were signed off and proved on 2026-11-28
   told apart from a single bare value containing `, `, and `header_str` (lines 394–413) rejects
   duplicates only before such a merge.
 
-- **H19–H23 (suspected, `model/elicitation_schema.rs`; decision XD4).** Found by probes on the Rust
-  code in the translation stage of the elicitation schema builders (2026-11-28); their statements
-  are pending (specification stage), which will state the actual behaviour. H19:
-  `ElicitationSchemaBuilder::build` returns `Ok` for a schema with no property, although its
-  documentation lists an empty schema as an error. H20: `required` can hold the same name several
-  times (`required_string("a")` twice, `mark_required("a")`), which JSON Schema forbids. H21: the
-  single setters accept `min_length > max_length`, `minimum > maximum` and a default outside the
-  range, while `with_length`/`with_range` reject the bounds. H22: a multi-select enum accepts
-  `min_items` greater than the number of values and duplicate defaults. H23: the documentation of
-  `string_property` says "(required)", but the property is not required.
+- **H19: `ElicitationSchemaBuilder::build` accepts a schema with no property.** `build`
+  (`model/elicitation_schema.rs` lines 1764–1788) returns `Ok` whenever every required name is a
+  property, also for a builder with no property at all, although its documentation (line 1763)
+  lists "No properties are defined (empty schema)" as an error (`ElicitationSchemaBuilder.build`,
+  `build_consistent`, `build_new`; top-level: `ElicitationSchemaBuilder.build_unchecked`,
+  `build_unchecked_consistent`, `ElicitationSchema.builder_build_unchecked_empty`).
+- **H20: the required list keeps duplicates and names that are not properties.** Every
+  `required_*` helper and `mark_required` (lines 1740–1743) append the name even if it is already
+  required (`required_string("a")` twice, or `mark_required("a")` after it), which JSON Schema
+  forbids, and `mark_required` accepts a name that is not (yet) a property; if no property of that
+  name exists when `build` runs, `build` returns an error and `build_unchecked` panics (decision
+  XS5; `ElicitationSchemaBuilder.required_property`, `mark_required`, `build`,
+  `build_unchecked_fail` and the `required_*` rows of `specs/README.md`).
+- **H22: a multi-select enum accepts `min_items` above the number of values and duplicate
+  defaults.** `EnumSchemaBuilder::<MultiSelect>::{min_items, with_default}` (lines 996–1046)
+  check the bounds against each other and against the default, but not against the number of
+  enum values, and do not reject a default value given twice
+  (`EnumSchemaBuilderMultiSelect.with_default`, `min_items`, `build_consistent`).
+- **H23: `string_property` is documented as required but is not.** Its doc comment (line 1435)
+  says "(required)", but it does not add the name to the required list (lines 1436–1446;
+  `ElicitationSchemaBuilder.string_property`).
 
-No bug was found in the request-state codec or `skill.rs`. Recorded
-behaviours, not bugs: a single-key codec built with `new_unchecked` or the deprecated `new`
-accepts a key of any length (only `try_new` checks it); `rs1_fallbacks_verify` panics (`expect`)
-if an rs1 fallback id is not a key, which the keyring constructors prevent.
+No bug was found in the request-state codec or `skill.rs`. Recorded behaviours, not bugs: a
+single-key codec built with `new_unchecked` or the deprecated `new` accepts a key of any length
+(only `try_new` checks it); `rs1_fallbacks_verify` panics (`expect`) if an rs1 fallback id is not a
+key, which the keyring constructors prevent; `ElicitationSchema::with_required` stores any names,
+also ones that are not properties, and turns an empty list into `Some([])`, and
+`required_enum_schema`/`optional_enum_schema` store an `EnumSchema` without checking it (decision
+XS4); and (H21, not a bug, decision XS7: it does not contradict the "Set …" documentation of these
+setters) `StringSchema::{min_length, max_length, with_default}` and `IntegerSchema::{minimum,
+maximum, with_default}` (lines 209–230, 427–454) set the field without checking it against the
+other bound or the default, so they accept `min > max` and a default outside the range, while
+`with_length`/`with_range` reject `min > max` (`StringSchema.min_length`, …,
+`IntegerSchema.with_default`; also `required_integer_with`, whose closure may do the same).
 
 ### Not covered
 
@@ -173,17 +200,19 @@ if an rs1 fallback id is not a key, which the keyring constructors prevent.
 ### Open items
 
 - **Elicitation schema builders (X01–X75)**: translated (patch 08, 65 `ORIGINAL`, 10
-  `patch-08`); specification and proofs pending. Draft upstream Aeneas issues (undefined float
-  types, `keys().cloned().collect()`, `Cow<'static>` in a loop, generated `Map`/`Zip` iterator
-  fields) are in `trusted/issues/aeneas-elicitation-schema.md`, not filed; its issue 6 (an
-  internal error on the original `with_default` loop) is not reduced to a small reproducer.
+  `patch-08`), specified (109 statements, signed off 2026-11-28) and proved. Still open: the draft
+  upstream Aeneas issues (undefined float types, `keys().cloned().collect()`, `Cow<'static>` in a
+  loop, generated `Map`/`Zip` iterator fields) in `trusted/issues/aeneas-elicitation-schema.md`,
+  not filed; its issue 6 (an internal error on the original `with_default` loop) is not reduced to
+  a small reproducer.
 - **CI has not run on GitHub** (nothing pushed yet). The three workflows (`lean-build.yml`,
   `aeneas-translation.yml`, `patched-tests.yml`) were checked locally only. Every `ORIGINAL`
-  linkage (Phase 2, the 13 ORIGINAL `skill.rs` targets, N01, N08) rests on local runs of
+  linkage (Phase 2, the 13 ORIGINAL `skill.rs` targets, N01, N08, the 65 ORIGINAL elicitation
+  targets) rests on local runs of
   `scripts/check-original-linkage.sh` until its first CI run. Still to do after the push: show
   each CI check failing once on a throwaway branch, and reproduce the results from a fresh clone.
 - **Project owner and budget (H5)**: not named. The spec owner is Hoang Le Truong.
-- **Upstream reports of H7 and H8**: need the owner's go-ahead.
+- **Upstream reports of H7–H20, H22, H23**: need the owner's go-ahead (H9 privately first).
 - **No shared verification lockfile**: `Cargo.lock` is not committed, so `aeneas-translation.yml`
   and `patched-tests.yml` each resolve their own. Pinned crates and sources are identical by
   check; unpinned transitive crates could differ. Committing a shared lockfile is a human
@@ -738,8 +767,8 @@ may promise a result where Rust panics or behaves otherwise.
 - **`BTreeMap::insert`** (patch 08) assumes the entries are sorted by key with distinct keys and
   that `Ord` is total and does not fail (only `String` keys occur, for which
   `btreeInsert_stringOrd_eq_ok` shows it equals the reviewed `mapInsert`). The `BTreeMap` type
-  itself does not carry the sortedness invariant, so statements about a map the caller supplies
-  assume it.
+  itself does not carry the sortedness invariant; the statements assume none and state sortedness
+  only as "sorted before, sorted after", plus that the empty map is sorted (decision XS1).
 - **`<str as Debug>::fmt`** (patch 08) is total, not exact (it writes nothing); it is reached only
   through `Result::expect` in `build_unchecked`, whose Aeneas model never calls it.
 - **`elicitation_schema::prim::sorted_keys`** is `collectVec`, which fails when
@@ -869,7 +898,9 @@ review; other files cite them by name.
 - `systemLookup` is only stored; no rule is needed.
 - **The float rule** (decision XD3). No statement inspects, compares or constructs a value of `F64`
   or `F32` (the number fields of `NumberSchema` and `Annotations.priority`); they are opaque
-  carriers, and the translated targets only move them.
+  carriers, and the translated targets only move them. A statement may say that a value containing
+  them is moved unchanged (an equality of the whole stored value, e.g. a `PrimitiveSchemaDefinition`
+  kept in a property map; decision XS2), never what the float fields hold.
 
 ### Namespace rule for `trusted/`
 
@@ -910,6 +941,9 @@ trusted root imports passes both layers (`RmcpExternal` should import only `Aene
 | GD1–GD3 | Translation patch 07 (`mcp_headers.rs` G01–G04, 2026-11-27): adopted as drafted with an opaque `prim` module and the quote workaround (GD1); exact models: byte-level control test, Base64 by alphabet renaming, buffer guard kept (GD2); boundary tests in patch 02 (GD3); lead decision: the identity model of `Option::copied` is allowed although its Lean type merges `Option<&T>` and `Option<T>` (its value does not depend on which). |
 | XD1–XD8 | Translation patch 08 (`elicitation_schema.rs` X01–X75, 2026-11-28): adopted as drafted with an opaque `prim` module, the `BTreeMap`, `String` order, `Vec` default and `Iter::all` models, and `<str as Debug>::fmt` as a total model (XD1); the linkage check extended so that targets no hunk touches are `ORIGINAL` (XD2, XD5–XD7; see "The linkage check"); `F64`/`F32` as opaque carriers and `autoImplicit = false` for `Rmcp` (XD3); the suspected Rust bugs recorded as H19–H23 (XD4); 7 boundary tests in patch 02 (XD8). |
 | XD9 | `autoImplicit = false` also for `RmcpExternal`, the hand-written trusted models (2026-11-28), raised by the final translation review. |
+| XS1–XS5 | Specification of the elicitation schema builders (2026-11-28): no sortedness premise on caller-supplied maps, sortedness carried as an implication, exact-entry corollaries for `property`/`required_property` (XS1); a statement may say a value holding floats is moved unchanged (XS2, see "The float rule"); definitions used only by internal statements in `proofs/Proofs/Defs/ElicitationSchema.lean` (XS3); `with_required` and the enum-schema property helpers are recorded behaviours, not bugs (XS4); H20 also covers `mark_required` with a name that is not (yet) a property, which fails only if no property of that name exists when `build` runs (XS5). |
+| XS6 | Sign-off of the elicitation schema builders (2026-11-28): the spec owner (Hoang Le Truong) signed off the 109 statements X01–X75 (86 top-level in `specs/Specs/Model/ElicitationSchema.lean`, 23 in `proofs/Proofs/Internal/Model/ElicitationSchema.lean`) and both definition files (`specs/Defs/ElicitationSchema.lean`, `proofs/Proofs/Defs/ElicitationSchema.lean`); proofs and restatements completed 2026-11-28. |
+| XS7 | Elicitation bugs (2026-11-29): H19, H20, H22 and H23 are confirmed bugs; H21 (the single setters `min_length`, `max_length`, `minimum`, `maximum` and the defaults accept `min > max` and a default outside the range, while `with_length`/`with_range` reject the bounds) is a recorded behaviour, not a bug, as it does not contradict the "Set …" documentation; its number is not reused. The signed-off theorem docstrings keep their H21 wording. |
 | G spec | G01–G04 specification cycle (2026-11-27 and 2026-11-28): the main specs keep the exact premises (E), (U), (D) with plain corollaries, and the conditional UTF-8 premise (U) of G04 is an approved exception to the UTF-8 rule (i) (see "Review rules"); CD1 (unneeded wrap accepted) is H17, CD7 (list characters bare) is H18; CD2 (bare value the encoder would wrap accepted) is a note, recorded in H17 as its second cause; CD3 (encoder stricter than RFC 9110) and CD4 (case-sensitive sentinel, strict padded standard Base64) are intended, matching SEP-2243; CD5 (error text "not valid Base64" for a non-UTF-8 payload) and CD6 (empty value sent as an empty header) are notes. Signed off 2026-11-28. |
 | N1, N5, N8, N9, N10, N11 | Lead decisions of the Aeneas upgrade: Charon options checked through `translation.json` (N1), native lock empty (N5), four std models moved to the Aeneas library (N8), model citations re-checked (N9), `--wfail` build gate with an empty allowlist (N10), kernel replay with `Lean.Kernel.Environment.replay` (N11). |
 
