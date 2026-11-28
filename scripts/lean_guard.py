@@ -24,7 +24,10 @@
   lean_guard.py build-log FILE      the `lake build` log has a "Build completed successfully"
                                     line and no `warning:`/`error:` line.
   lean_guard.py selftest            self-tests of the two exact `sources` exemptions (generated
-                                    macro-site docstrings; the one dupNamespace option).
+                                    macro-site docstrings; the one dupNamespace option), of the
+                                    autoImplicit rules of `sources` and of the leanOptions rule
+                                    of `lakefile` (the autoImplicit
+                                    option of Rmcp and RmcpExternal).
   lean_guard.py archive PKG ARCHIVE PKG/.lake/build and the Lake release ARCHIVE hold the same
                                     regular files with the same bytes, *.hash and *.trace
                                     excepted (see check_archive).
@@ -63,7 +66,9 @@ def fail(msgs):
 # lakefile
 
 # The five libraries of plan Section 5: srcDir and roots are fixed; leanOptions must be
-# exactly { warningAsError = true }; no other key (no moreLeanArgs, weakLeanArgs, globs,
+# exactly { warningAsError = true }, for Rmcp and RmcpExternal exactly LIB_OPTIONS[n] (human
+# decisions XD3 and XD9, 2026-11-28: autoImplicit off for the generated code and the trusted
+# models, so a name that nothing defines fails the build); no other key (no moreLeanArgs, weakLeanArgs, globs,
 # extraDepTargets, precompileModules, ...).
 LIBS = {
     "Rmcp": ("translation", ["Rmcp.Types", "Rmcp.Funs"]),
@@ -73,6 +78,9 @@ LIBS = {
     "Specs": ("specs", ["Specs"]),
 }
 LIB_FIELDS = {"name", "srcDir", "roots", "leanOptions"}
+LIB_OPTIONS_DEFAULT = {"warningAsError": True}
+LIB_OPTIONS = {"Rmcp": {"warningAsError": True, "autoImplicit": False},
+               "RmcpExternal": {"warningAsError": True, "autoImplicit": False}}
 PACKAGE_FIELDS = {"name", "defaultTargets", "require", "lean_lib"}
 REQUIRE_FIELDS = {"name", "git", "rev", "subDir"}
 REQUIRED_DEFAULTS = {"Defs", "Proofs", "Specs"}
@@ -164,6 +172,18 @@ def check_toolchain(formal):
     return []
 
 
+def lib_option_errors(n, opts):
+    """Errors for the leanOptions OPTS of library N: exactly LIB_OPTIONS[N] (Rmcp, RmcpExternal) or
+    LIB_OPTIONS_DEFAULT (every other library); values compared with their TOML types, so
+    `autoImplicit = "false"` or `warningAsError = 1` fail."""
+    want = LIB_OPTIONS.get(n, LIB_OPTIONS_DEFAULT)
+    if not (isinstance(opts, dict) and opts == want
+            and all(type(opts[k]) is type(want[k]) for k in want)):
+        shown = ", ".join(f"{k} = {str(v).lower()}" for k, v in want.items())
+        return [f"lakefile.toml: library {n}: leanOptions {opts!r}, expected exactly {{ {shown} }}"]
+    return []
+
+
 def check_lakefile(formal):
     cfg, errs = load_lakefile(formal)
     errs += check_toolchain(formal)
@@ -198,9 +218,7 @@ def check_lakefile(formal):
         n = lib.get("name")
         if set(lib) != LIB_FIELDS:
             errs.append(f"lakefile.toml: library {n}: keys {sorted(lib)}, expected exactly {sorted(LIB_FIELDS)}")
-        if lib.get("leanOptions") != {"warningAsError": True}:
-            errs.append(f"lakefile.toml: library {n}: leanOptions {lib.get('leanOptions')!r}, "
-                        "expected exactly { warningAsError = true }")
+        errs += lib_option_errors(n, lib.get("leanOptions"))
         if n in LIBS:
             src, roots = LIBS[n]
             if lib.get("srcDir") != src:
@@ -217,7 +235,8 @@ def check_lakefile(formal):
         fail(errs + ["lakefile check failed"])
     print(f"[lean-guard] lean-toolchain: {LEAN_TOOLCHAIN}")
     print(f"[lean-guard] lakefile: the five libraries of plan Section 5, each with exactly "
-          f"leanOptions = {{ warningAsError = true }}; defaultTargets {dt}")
+          f"leanOptions = {{ warningAsError = true }} (Rmcp and RmcpExternal: also autoImplicit = false); "
+          f"defaultTargets {dt}")
     print(f"[lean-guard] lake-manifest.json: {len(MANIFEST_PACKAGES)} packages at the recorded "
           f"commits (aeneas {AENEAS_COMMIT[:8]}, matching the lakefile)")
 
@@ -291,8 +310,41 @@ RULES_ALL = [(w, word(w)) for w in WORDS_ALL] + [
     ("native option (+native/-native)", re.compile(rf"(?:(?<=\s)|(?<=[(\[{{,])|^)[+-]native(?!{ID})", re.M)),
     ("native option (native :=)", re.compile(rf"(?<!{ID})(?<!\.)native\s*:=")),
 ]
+# How `set_option NAME VALUE` is matched (Lean v4.36.0, the pinned toolchain; tried in
+# formal/trusted/evidence/README.md, "Guard rules for set_option"): NAME is a dotted name whose
+# components are each plain (`linter`) or «…»-quoted (`«linter»`), and no whitespace is needed
+# after `set_option` or between a closing `»` and VALUE (`set_option«autoImplicit»false`); VALUE
+# is the token `true` or `false` (also numerals and strings, which Bool options reject; `«false»`
+# is a syntax error); a comment may stand between `set_option` and NAME and between NAME and
+# VALUE.
+NAME_COMP = rf"(?:«[^»]*»|{ID}+)"
+OPT_NAME = rf"{NAME_COMP}(?:\.{NAME_COMP})*"
+VALUE_SEP = r"(?:(?<=»)\s*|\s+)"
 # Hand-written only: generated files carry `set_option linter.* false` (Aeneas emits it).
-RULE_LINTER = ("set_option linter.<name> false", re.compile(r"set_option\s+linter\.\S+\s+false"))
+# Matches `set_option` of every option whose first name component is `linter` or `«linter»`
+# (later components plain or quoted) with value `false`.
+RULE_LINTER = ("set_option linter.<name> false",
+               re.compile(rf"(?<!{ID})set_option\s*(?:linter|«linter»)\.{OPT_NAME}{VALUE_SEP}false(?!{ID})"))
+# The options that bind unknown names as implicit variables (human decision XD3, 2026-11-28: the
+# library Rmcp is built with `autoImplicit = false`, so a name the translation uses but nothing
+# defines is an error; review finding TR7: this must not depend on Aeneas never emitting the
+# option). Generated files: the two option names may not occur at all, as whole words (any value,
+# the `in` form, «…» quoting; Aeneas emits neither). Hand-written files: `set_option` of either,
+# plain or «…»-quoted, with or without whitespace after `set_option`, may only have the value
+# `false` (the `in` form included), preceded by whitespace only (line breaks allowed); any other
+# value, or a comment before the value, is reported (review findings TR7, TR11).
+RULE_AUTOIMPLICIT_GEN = ("autoImplicit/relaxedAutoImplicit in generated code",
+                         re.compile(rf"(?<!{ID})(?:autoImplicit|relaxedAutoImplicit)(?!{ID})"))
+RULE_AUTOIMPLICIT_ON = ("set_option autoImplicit/relaxedAutoImplicit other than false",
+                        re.compile(rf"(?<!{ID})set_option\s*(?:«(?:autoImplicit|relaxedAutoImplicit)»"
+                                   rf"|(?:autoImplicit|relaxedAutoImplicit)(?!{ID}))"
+                                   rf"(?!\s*false(?!{ID}))"))
+# All files (generated included): no comment (`--`, `/-`, `/--`) anywhere between `set_option` and
+# its value, i.e. after `set_option` or after the option name (plain or quoted components), so that
+# neither RULE_LINTER nor the autoImplicit rules can be evaded by a comment (review findings TR7,
+# TR12). A comment after the value is not matched.
+RULE_SETOPT_COMMENT = ("comment between set_option and its value",
+                       re.compile(rf"(?<!{ID})set_option\s*(?:{OPT_NAME}\s*)?(?:/-|--)"))
 # Every hand-written file (trusted/ included) and the generated files: what runs code at
 # elaboration time (during `lake build`) or changes the environment or options from a
 # metaprogram. Such code could add declarations without a kernel check (caught by the replay
@@ -724,9 +776,11 @@ def check_sources(formal):
             text = raw_bytes.decode("utf-8", errors="replace")
             generated = rel.startswith("translation/")
             template = generated and fn.endswith("_Template.lean")
-            rules = list(RULES_ALL) + RULES_META
+            rules = list(RULES_ALL) + RULES_META + [RULE_SETOPT_COMMENT]
             if not generated:
-                rules.append(RULE_LINTER)
+                rules += [RULE_LINTER, RULE_AUTOIMPLICIT_ON]
+            else:
+                rules.append(RULE_AUTOIMPLICIT_GEN)
             if not template and not rel.startswith("trusted/"):
                 rules.append(RULE_AXIOM)
             if rel.startswith("trusted/"):
@@ -1097,8 +1151,9 @@ def check_native_lock(lock, got):
 
 
 def selftest():
-    """Positive and negative cases of the two exact exemptions of check_sources, run on
-    temporary formal/ trees (each case: files to write, expected pass, expected message)."""
+    """Positive and negative cases of the two exact exemptions of check_sources and of its
+    autoImplicit rules, run on temporary formal/ trees (each case: files to write, expected pass,
+    expected message), and of the leanOptions rule of check_lakefile (lib_option_errors)."""
     import tempfile
     src_line = ("    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; " + MACRO_SITE_PHRASE
                 + " 'crates/rmcp/src/model.rs', lines 144:0-144:40 -/")
@@ -1133,8 +1188,116 @@ def selftest():
          False, "banned: set_option linter"),
         ("other linter option on the declaration",
          {DUPNS_FILE: "set_option linter.unusedVariables false in\n" + zero}, False, "banned: set_option linter"),
+        # autoImplicit (human decision XD3, review finding TR7)
+        ("generated: autoImplicit true", {gen: "set_option autoImplicit true\n"}, False,
+         "banned: autoImplicit/relaxedAutoImplicit in generated code"),
+        ("generated: autoImplicit false", {gen: "set_option autoImplicit false\n"}, False,
+         "banned: autoImplicit/relaxedAutoImplicit in generated code"),
+        ("generated: relaxedAutoImplicit, in form", {gen: "set_option relaxedAutoImplicit true in\ndef x := 1\n"},
+         False, "banned: autoImplicit/relaxedAutoImplicit in generated code"),
+        ("generated: quoted option name", {gen: "set_option «autoImplicit» true in\ndef x := 1\n"}, False,
+         "banned: autoImplicit/relaxedAutoImplicit in generated code"),
+        ("generated: comment before the option name", {gen: "set_option /- x -/ autoImplicit true\n"}, False,
+         "banned: comment between set_option and its value"),
+        ("generated: comment between name and value",
+         {gen: "set_option maxHeartbeats /- x -/ 1000000\n"}, False, "banned: comment between set_option and its value"),
+        ("generated: comment after the value", {gen: "set_option maxHeartbeats 1000000 -- x\n"}, True, None),
+        ("generated: in a template", {"translation/Rmcp/FunsExternal_Template.lean": "set_option autoImplicit true\n"},
+         False, "banned: autoImplicit/relaxedAutoImplicit in generated code"),
+        ("hand-written: autoImplicit false", {"proofs/Proofs/X.lean": "set_option autoImplicit false\n"}, True, None),
+        ("hand-written: relaxedAutoImplicit false in",
+         {"proofs/Proofs/X.lean": "set_option relaxedAutoImplicit false in\ndef x := 1\n"}, True, None),
+        ("hand-written: autoImplicit true", {"proofs/Proofs/X.lean": "set_option autoImplicit true\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: relaxedAutoImplicit true in", {"trusted/Rmcp/TypesExternal.lean":
+         "set_option relaxedAutoImplicit true in\ndef x := 1\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: quoted option name", {"specs/Defs.lean": "set_option «autoImplicit» true\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: value on the next line", {"specs/Defs.lean": "set_option autoImplicit\n  true\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: comment before the option name", {"specs/Defs.lean": "set_option -- x\n  autoImplicit true\n"},
+         False, "banned: comment between set_option and its value"),
+        # review finding TR11: no space before «, quoted names, the `in` form, quoted name with false
+        ("hand-written: no space before the quoted name (TR11)",
+         {"specs/Defs.lean": "set_option«autoImplicit» true\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: no space, quoted name, in form (TR11)",
+         {"specs/Defs.lean": "set_option«relaxedAutoImplicit» true in\ndef x := 1\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: line break before the unquoted name",
+         {"specs/Defs.lean": "set_option\n  autoImplicit true\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: quoted name, false (TR11)",
+         {"proofs/Proofs/X.lean": "set_option «relaxedAutoImplicit» false\n"}, True, None),
+        ("hand-written: quoted name, false, in form (TR11)",
+         {"proofs/Proofs/X.lean": "set_option «autoImplicit» false in\ndef x := 1\n"}, True, None),
+        ("hand-written: no space, quoted name, no space, false (TR11)",
+         {"proofs/Proofs/X.lean": "set_option«autoImplicit»false\n"}, True, None),
+        ("hand-written: false on the next line", {"proofs/Proofs/X.lean": "set_option autoImplicit\n  false\n"},
+         True, None),
+        ("hand-written: comment before false (TR12)",
+         {"specs/Defs.lean": "set_option autoImplicit /- c -/ false\n"}, False,
+         "banned: comment between set_option and its value"),
+        ("hand-written: autoImplicit as a name prefix is another option",
+         {"specs/Defs.lean": "set_option autoImplicitX true\n"}, True, None),
+        # review finding TR12: comments between name and value, quoted components of linter names
+        ("hand-written: linter, comment between name and value (TR12)",
+         {"proofs/Proofs/X.lean": "set_option linter.unusedVariables /- c -/ false in\ndef x := 1\n"}, False,
+         "banned: comment between set_option and its value"),
+        ("hand-written: linter, line comment between name and value (TR12)",
+         {"proofs/Proofs/X.lean": "set_option linter.unusedVariables -- c\n  false in\ndef x := 1\n"}, False,
+         "banned: comment between set_option and its value"),
+        ("hand-written: linter, quoted first component (TR12)",
+         {"proofs/Proofs/X.lean": "set_option «linter».unusedVariables false in\ndef x := 1\n"}, False,
+         "banned: set_option linter"),
+        ("hand-written: linter, quoted later component (TR12)",
+         {"proofs/Proofs/X.lean": "set_option linter.«unusedVariables» false in\ndef x := 1\n"}, False,
+         "banned: set_option linter"),
+        ("hand-written: linter, all components quoted, no spaces (TR12)",
+         {"proofs/Proofs/X.lean": "set_option«linter».«unusedVariables»false\n"}, False,
+         "banned: set_option linter"),
+        ("hand-written: linter, value on the next line (TR12)",
+         {"proofs/Proofs/X.lean": "set_option linter.unusedVariables\n  false in\ndef x := 1\n"}, False,
+         "banned: set_option linter"),
+        ("hand-written: linter switched on", {"proofs/Proofs/X.lean": "set_option linter.unusedVariables true\n"},
+         True, None),
+        ("hand-written: comment after the value", {"proofs/Proofs/X.lean": "set_option autoImplicit false -- c\n"},
+         True, None),
+        ("hand-written: falsehood is not false", {"specs/Defs.lean": "set_option autoImplicit falsehood\n"}, False,
+         "banned: set_option autoImplicit/relaxedAutoImplicit other than false"),
+        ("hand-written: the word in a docstring", {"specs/Defs.lean": "/-- built with `autoImplicit = false` -/\ndef x := 1\n"},
+         True, None),
     ]
     bad = []
+    # The leanOptions rule of check_lakefile (lib_option_errors): the one extra option of Rmcp
+    # and RmcpExternal.
+    opt_cases = [
+        ("Rmcp with autoImplicit off", "Rmcp", {"warningAsError": True, "autoImplicit": False}, True),
+        ("Rmcp without autoImplicit", "Rmcp", {"warningAsError": True}, False),
+        ("Rmcp with autoImplicit on", "Rmcp", {"warningAsError": True, "autoImplicit": True}, False),
+        ("Rmcp without warningAsError", "Rmcp", {"autoImplicit": False}, False),
+        ("Rmcp with warningAsError off", "Rmcp", {"warningAsError": False, "autoImplicit": False}, False),
+        ("Rmcp with a third option", "Rmcp",
+         {"warningAsError": True, "autoImplicit": False, "relaxedAutoImplicit": False}, False),
+        ("Rmcp with a string value", "Rmcp", {"warningAsError": True, "autoImplicit": "false"}, False),
+        ("Rmcp with an integer value", "Rmcp", {"warningAsError": 1, "autoImplicit": False}, False),
+        ("RmcpExternal with autoImplicit off", "RmcpExternal",
+         {"warningAsError": True, "autoImplicit": False}, True),
+        ("RmcpExternal without autoImplicit", "RmcpExternal", {"warningAsError": True}, False),
+        ("RmcpExternal with autoImplicit on", "RmcpExternal",
+         {"warningAsError": True, "autoImplicit": True}, False),
+        ("RmcpExternal with a string value", "RmcpExternal",
+         {"warningAsError": True, "autoImplicit": "false"}, False),
+        ("RmcpExternal with a third option", "RmcpExternal",
+         {"warningAsError": True, "autoImplicit": False, "relaxedAutoImplicit": False}, False),
+        ("Proofs with autoImplicit off", "Proofs", {"warningAsError": True, "autoImplicit": False}, False),
+        ("Proofs default", "Proofs", {"warningAsError": True}, True),
+        ("Specs not a table", "Specs", "warningAsError", False),
+    ]
+    for name, lib, opts, ok in opt_cases:
+        if (not lib_option_errors(lib, opts)) != ok:
+            bad.append(f"selftest case {name!r}: expected {'pass' if ok else 'fail'}")
     for name, files, ok, msg in cases:
         with tempfile.TemporaryDirectory() as d:
             for rel, content in files.items():
@@ -1155,7 +1318,8 @@ def selftest():
                            f"{err.getvalue().strip()[:300]}")
     if bad:
         fail(bad + ["selftest failed"])
-    print(f"[lean-guard] selftest: {len(cases)} cases of the sources exemptions pass")
+    print(f"[lean-guard] selftest: {len(cases)} cases of the sources exemptions and autoImplicit rules and "
+          f"{len(opt_cases)} cases of the lakefile leanOptions rule pass")
 
 
 COMMANDS = {"selftest": (selftest, 0), "fresh": (check_fresh, 1), "axiom-lock": (check_axiom_lock, 2),

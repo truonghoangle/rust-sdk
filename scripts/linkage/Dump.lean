@@ -8,6 +8,10 @@ line (name, module, kind, universe parameters, canonical type, canonical body), 
 translation modules export besides constants (instance and reducibility entries, and the number of
 module entries of every environment extension).
 
+For a definition whose value is a structure constructor applied to arguments, the line also
+holds the canonical arguments with the field names (`spine`), so that a std trait instance can be
+compared field by field (human decision XD2, 2026-11-28).
+
 Canonical form: binder names, hygiene and metadata are dropped (de Bruijn indices stay); a reference
 to an auxiliary constant of these modules (an internal name such as `_proof_3`/`_sizeOf_1`, a
 matcher `match_N`, or any theorem) is replaced by its content -- a theorem by its statement (proofs
@@ -63,6 +67,31 @@ partial def canonAux (env : Environment) (n : Name) : M String := do
   return s
 end
 
+/-- The leading `fun` binders (their canonical types) and the body under them. -/
+partial def stripLams (env : Environment) : Expr → M (List String × Expr)
+  | .lam _ t b bi => do
+      let (ls, e) ← stripLams env b
+      pure (s!"[{repr bi}] {← canon env t}" :: ls, e)
+  | .mdata _ e => stripLams env e
+  | e => pure ([], e)
+
+/-- For a definition whose value is, under its leading `fun` binders, a constructor of a structure
+applied to arguments (a trait instance, human decision XD2): the constructor, its universe levels,
+the binders, the number of parameters, the field names and the canonical arguments, so that
+scripts/linkage/compare_env.py can compare two such values field by field. -/
+def spine (env : Environment) : ConstantInfo → M (Option Json)
+  | .defnInfo v => do
+      let (lams, e) ← stripLams env v.value
+      let .const c ls := e.getAppFn | return none
+      let some (.ctorInfo cv) := env.find? c | return none
+      let some _ := getStructureInfo? env cv.induct | return none
+      let args ← e.getAppArgs.toList.mapM (canon env)
+      return some (Json.mkObj [("ctor", toString c), ("levels", toString ls), ("lams", toJson lams),
+        ("nparams", toJson cv.numParams),
+        ("fields", toJson ((getStructureFields env cv.induct).toList.map toString)),
+        ("args", toJson args)])
+  | _ => return none
+
 def body (env : Environment) : ConstantInfo → M String
   | .defnInfo v => do pure s!"{← canon env v.value} safety={repr v.safety}"
   | .thmInfo _ => pure ""
@@ -89,7 +118,7 @@ def main (args : List String) : IO Unit := do
       if mods.contains m && !isAux env n then
         let j := Json.mkObj [("c", toString n), ("module", toString m), ("kind", kind ci),
           ("lparams", toString ci.levelParams), ("type", ← canon env ci.type),
-          ("body", ← body env ci)]
+          ("body", ← body env ci), ("spine", (← spine env ci).getD Json.null)]
         h.putStrLn j.compress
   act.run' {}
   -- What the translation modules export besides constants (review a6-2): every instance entry

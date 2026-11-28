@@ -55,6 +55,10 @@ Translation patch 07 (human decisions GD1 and GD2, 2026-11-27, targets G01–G04
 eight `mcp_headers::prim` functions (padded standard Base64 by renaming the alphabet of the
 Base64url models, which are unchanged) and three functions of `core`, with no `opaque` constant
 and no axiom.
+Translation patch 08 (human decision XD1, 2026-11-28, targets X01–X75 of
+`elicitation_schema.rs`) added the models of the section "Elicitation schema builders": the two
+`elicitation_schema::prim` functions and seven functions of `core` and `alloc`, with no `opaque`
+constant and no axiom.
 The conventions below apply to all models.
 
 Ordering note (S21): the generated external `core.result.Result.ok` shadows Aeneas' `ok` for
@@ -3613,3 +3617,178 @@ def transport.common.mcp_headers.prim.base64_decode (value : Str) :
     | none => ok none
     | some l => ok (some (alloc.vec.Vec.from l
         ((ExtModel.b64StdPadDecode_length_le _ _ h).trans value.property)))
+
+/-! ## Elicitation schema builders (X01–X75, translation patch 08)
+
+External functions reached by the targets X01–X75 of `crates/rmcp/src/model/elicitation_schema.rs`
+(human decision XD1, 2026-11-28): the two `elicitation_schema::prim` wrappers of translation
+patch 08 (opaque in the translation) and seven functions of `core` and `alloc` (`BTreeMap`'s
+`default` and `insert`, `Ord`/`PartialOrd` of `String`, `Vec`'s `default`, `Debug for str`,
+`slice::Iter::all`). No `opaque` constant, no axiom. Stated exceptions: `BTreeMap::insert`
+assumes sorted entries with distinct keys and a total, consistent, non-failing `Ord` (true of
+`Ord for String`, the only instance used); `<str as Debug>::fmt` is total, not exact. Laws and
+spec theorems: `Proofs.External.ElicitationSchema`. -/
+
+namespace ExtModel
+
+/-- `BTreeMap::insert` on the entries of a map kept ascending by key: walking the entries in
+order, compare `k` with each key through the `Ord` instance (`k.cmp(key)`, the orientation of
+`find_key_index`, `alloc/src/collections/btree/search.rs` lines 225–242; failures propagate):
+`Greater` continues, `Equal` replaces the value in place and returns the old one (the stored key
+is kept: "the key is not updated"), `Less` inserts `(k, v)` before the entry and returns `none`;
+after the last entry, append `(k, v)` and return `none`. On sorted entries and for a lawful `Ord`
+this is the `BTreeMap` result; the B-tree compares `k` with fewer keys (one path through the
+nodes), which gives the same result when `cmp` is a total order and does not fail. -/
+def btreeInsert {K V : Type _} (ord : core.cmp.Ord K) (k : K) (v : V) :
+    List (K × V) → Result (Option V × List (K × V))
+  | [] => ok (none, [(k, v)])
+  | (k', v') :: rest => do
+    let c ← ord.cmp k k'
+    match c with
+    | .lt => ok (none, (k, v) :: (k', v') :: rest)
+    | .eq => ok (some v', (k', v) :: rest)
+    | .gt => do
+      let (o, r) ← btreeInsert ord k v rest
+      ok (o, (k', v') :: r)
+
+/-- Rust's `Ord` of byte sequences (`Ord for [u8]`: lexicographic on unsigned bytes, a proper
+prefix first), through `ExtModel.bytesLt`. -/
+def bytesCmp (a b : List Std.U8) : Ordering :=
+  if bytesLt a b then .lt else if a = b then .eq else .gt
+
+end ExtModel
+
+/-- [alloc::collections::btree::map::{impl core::default::Default for alloc::collections::btree::map::BTreeMap<K, V, alloc::alloc::Global>}::default]:
+    Source: '/rustc/library/alloc/src/collections/btree/map.rs', lines 2608:4-2608:34
+    Name pattern: [alloc::collections::btree::map::{core::default::Default<alloc::collections::btree::map::BTreeMap<@K, @V, alloc::alloc::Global>>}::default]
+    Visibility: public
+
+**Model:** the empty map (`BTreeMap::new()`, lines 2608–2610: no root, length 0, no
+allocation). -/
+@[rust_fun
+  "alloc::collections::btree::map::{core::default::Default<alloc::collections::btree::map::BTreeMap<@K, @V, alloc::alloc::Global>>}::default"]
+def alloc.collections.btree.map.BTreeMapKVGlobal.Insts.CoreDefaultDefault.default
+    (K : Type _) (V : Type _) :
+    Result (alloc.collections.btree.map.BTreeMap K V alloc.alloc.Global) :=
+  ok { entries := [] }
+
+/-- [alloc::collections::btree::map::{alloc::collections::btree::map::BTreeMap<K, V, A>}::insert]:
+    Source: '/rustc/library/alloc/src/collections/btree/map.rs', lines 1047:4-1049:15
+    Name pattern: [alloc::collections::btree::map::{alloc::collections::btree::map::BTreeMap<@K, @V, @A>}::insert]
+    Visibility: public
+
+**Model:** `ExtModel.btreeInsert` with the map's `Ord` instance (lines 1047–1058: `entry(key)`,
+then `Occupied` replaces the value and returns the old one, `Vacant` inserts and returns
+`None`). Stated exceptions: the entries are assumed sorted with distinct keys (every map built by
+these models from `default` is, for a lawful `Ord`), and `Ord::cmp` is assumed total,
+consistent and non-failing (true of `Ord for String`, the only instance used); the allocator
+clone instance and allocation failure are not modelled. -/
+@[rust_fun
+  "alloc::collections::btree::map::{alloc::collections::btree::map::BTreeMap<@K, @V, @A>}::insert"]
+def alloc.collections.btree.map.BTreeMap.insert {K : Type _} {V : Type _} {A : Type _}
+    (_coreallocAllocatorCloneInst : core.alloc.AllocatorClone A)
+    (corecmpOrdInst : core.cmp.Ord K) (self : alloc.collections.btree.map.BTreeMap K V A)
+    (k : K) (v : V) :
+    Result ((Option V) × (alloc.collections.btree.map.BTreeMap K V A)) := do
+  let (o, entries) ← ExtModel.btreeInsert corecmpOrdInst k v self.entries
+  ok (o, { entries })
+
+/-- [alloc::string::{impl core::cmp::Ord for alloc::string::String}::cmp]:
+    Source: '/rustc/library/alloc/src/string.rs', lines 350:36-350:39
+    Name pattern: [alloc::string::{core::cmp::Ord<alloc::string::String>}::cmp]
+    Visibility: public
+
+**Model:** the order of the UTF-8 bytes (`ExtModel.bytesCmp`): `#[derive(Ord)]` on
+`String { vec: Vec<u8> }` (line 350) compares the byte vectors lexicographically. Never fails. -/
+@[rust_fun "alloc::string::{core::cmp::Ord<alloc::string::String>}::cmp"]
+def alloc.string.String.Insts.CoreCmpOrd.cmp (self : String) (other : String) :
+    Result Ordering :=
+  ok (ExtModel.bytesCmp (ExtModel.utf8 self) (ExtModel.utf8 other))
+
+/-- [alloc::string::{impl core::cmp::PartialOrd<alloc::string::String> for alloc::string::String}::partial_cmp]:
+    Source: '/rustc/library/alloc/src/string.rs', lines 350:20-350:30
+    Name pattern: [alloc::string::{core::cmp::PartialOrd<alloc::string::String, alloc::string::String>}::partial_cmp]
+    Visibility: public
+
+**Model:** `Some` of the `Ord` result: `#[derive(PartialOrd)]` (line 350) compares the `Vec<u8>`
+fields, and `PartialOrd for [u8]` is `Some(Ord::cmp)` (`u8` is totally ordered). -/
+@[rust_fun
+  "alloc::string::{core::cmp::PartialOrd<alloc::string::String, alloc::string::String>}::partial_cmp"]
+def alloc.string.String.Insts.CoreCmpPartialOrdString.partial_cmp (self : String)
+    (other : String) : Result (Option Ordering) :=
+  ok (some (ExtModel.bytesCmp (ExtModel.utf8 self) (ExtModel.utf8 other)))
+
+/-- [alloc::vec::{impl core::default::Default for alloc::vec::Vec<T>}::default]:
+    Source: '/rustc/library/alloc/src/vec/mod.rs', lines 4417:4-4417:26
+    Name pattern: [alloc::vec::{core::default::Default<alloc::vec::Vec<@T>>}::default]
+    Visibility: public
+
+**Model:** the empty vector (`Vec::new()`, lines 4417–4419; no allocation). -/
+@[rust_fun "alloc::vec::{core::default::Default<alloc::vec::Vec<@T>>}::default"]
+def alloc.vec.Vec.Insts.CoreDefaultDefault.default (T : Type _) : Result (alloc.vec.Vec T) :=
+  ok (alloc.vec.Vec.new T)
+
+/-- [core::fmt::{impl core::fmt::Debug for str}::fmt]:
+    Source: '/rustc/library/core/src/fmt/mod.rs', lines 2917:4-2917:50
+    Name pattern: [core::fmt::{core::fmt::Debug<str>}::fmt]
+    Visibility: public
+
+**Model (total, not exact; a stated exception, as `ParseIntError`'s `Debug`):** `Ok(())` and the
+formatter unchanged; the quoted, escaped text written (lines 2917 ff.) is not modelled.
+`core::fmt::Formatter` is opaque in the Aeneas library, so no exact model exists. It is reached
+only through `Result::expect` in `ElicitationSchemaBuilder::build_unchecked` (X75), whose `Err`
+path is `fail panic` whatever the formatter holds (`core.result.Result.expect` of the Aeneas
+library): the panic message is not modelled. -/
+@[rust_fun "core::fmt::{core::fmt::Debug<str>}::fmt"]
+def Str.Insts.CoreFmtDebug.fmt (_self : Str) (f : core.fmt.Formatter) :
+    Result ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter) :=
+  ok (core.result.Result.Ok (), f)
+
+/-- [core::slice::iter::{impl core::iter::traits::iterator::Iterator<&'a T> for core::slice::iter::Iter<'a, T>}::all]:
+    Source: '/rustc/library/core/src/slice/iter/macros.rs', lines 304:12-307:45
+    Name pattern: [core::slice::iter::{core::iter::traits::iterator::Iterator<core::slice::iter::Iter<'a, @T>, &'a @T>}::all]
+    Visibility: public
+
+**Model:** calls the closure (through its `FnMut` instance, whose failures propagate) on the
+remaining elements in order, stops at the first `false`, and returns whether none was found and
+the iterator advanced past every element it consumed (`ExtModel.sliceIterAll`). The Rust
+function is the slice override of `Iterator::all` (lines 304–313, instantiated for `Iter` by
+`iterator!`, `core/src/slice/iter.rs` lines 140–148): `while let Some(x) = self.next() { if
+!f(x) { return false; } } true`. As the `any` model above. -/
+@[rust_fun
+  "core::slice::iter::{core::iter::traits::iterator::Iterator<core::slice::iter::Iter<'a, @T>, &'a @T>}::all"]
+def core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.all {T : Type} {F : Type}
+    (opsfunctionFnMutFTupleSharedATBoolInst : core.ops.function.FnMut F T Bool)
+    (self : core.slice.iter.Iter T) (f : F) : Result (Bool × (core.slice.iter.Iter T)) := do
+  let (b, n) ← ExtModel.sliceIterAll opsfunctionFnMutFTupleSharedATBoolInst
+    (self.slice.val.drop self.i) f
+  ok (b, { self with i := self.i + n })
+
+/-- [rmcp::model::elicitation_schema::prim::titles_mismatch_message]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1814:4-1819:5
+
+**Model:** the `format!` of the original `EnumSchemaBuilder::enum_titles`: the literal text with
+`expected` and `got` in decimal (`Display for usize`: the digits, no sign, no padding), which is
+Lean's `toString` of a `Nat`. The result is shorter than 200 bytes, so no capacity panic. -/
+def model.elicitation_schema.prim.titles_mismatch_message (expected : Std.Usize)
+    (got : Std.Usize) : Result String :=
+  ok ("Provided number of titles do not match number of values: expected " ++
+    toString expected.val ++ ", but got " ++ toString got.val)
+
+/-- [rmcp::model::elicitation_schema::prim::sorted_keys]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1821:4-1825:5
+
+**Model:** the keys of the entries, in the map's (ascending) order, collected into a `Vec`
+(`properties.keys().cloned().collect()`: `Keys` iterates in key order, `Cloned` clones each
+`String`, same bytes, and `Vec::from_iter` of this `TrustedLen` iterator reserves the exact
+length: `Keys` is `TrustedLen`, `alloc/src/collections/btree/map.rs` line 2050, and so is
+`Cloned` of it, `core/src/iter/adapters/cloned.rs` line 138); `fail panic` when `24 * len` bytes
+exceed `isize::MAX` (`ExtModel.collectVec 24`; unreachable for a map that exists). Patch 08 (E7)
+calls this before the validation of X74 `ElicitationSchemaBuilder::build`, so the translated X74
+returns its validation `Err` only when `24 * properties.entries.length ≤ isize::MAX`
+(`ExtModel.maxStringBytes`); a spec of that `Err` path states this premise. -/
+def model.elicitation_schema.prim.sorted_keys
+    (properties : alloc.collections.btree.map.BTreeMap String
+      model.elicitation_schema.PrimitiveSchemaDefinition alloc.alloc.Global) :
+    Result (alloc.vec.Vec String) :=
+  ExtModel.collectVec 24 (properties.entries.map Prod.fst)

@@ -5,7 +5,19 @@ every external of E0 with the same universe parameters and canonical type; and w
 Rmcp.Funs export besides constants may differ only as new declarations make it differ: instance
 entries (only the SizeOf and @[discriminant] instances generated for a type only E1 has, checked by
 class and argument), reducibility entries (only for new constants of the same module), and the entry
-counts of the other environment extensions (only those listed in GROW_OK may grow)."""
+counts of the other environment extensions (only those listed in GROW_OK may grow).
+Exception (human decision XD2, 2026-11-28): a std trait instance listed in the third argument
+(written by the text step of scripts/check-original-linkage.sh, which checked that the committed
+block differs only by fields it alone sets) may have a different body if both values are the same
+structure constructor with the same binders, levels and parameters, and the arguments differ only
+at those fields; and (review finding TR4) each such field must either hold, on the committed side,
+a value definitionally equal to the default the unmodified side gets, or be projected by no
+definition reachable from the unmodified-source translation and none reachable from the
+hand-written external models (fourth and fifth arguments, written by scripts/linkage/Widen.lean in
+env0 and env2; required when the third argument lists any field).
+
+Usage: compare_env.py <env0 dump> <env1 dump> [<instance-fields.json> [<widen-export.json>
+<widen-committed.json>]]"""
 import json, re, sys
 def load(p):
     consts, insts, reds, exts, aux = {}, [], [], {}, {}
@@ -19,6 +31,59 @@ def load(p):
         elif "ext" in o: exts[(o["module"], o["ext"])] = o["n"]
     return consts, insts, reds, exts, aux
 (c0, i0, r0, x0, a0), (c1, i1, r1, x1, a1) = load(sys.argv[1]), load(sys.argv[2])
+widened = json.load(open(sys.argv[3], encoding="utf-8")) if len(sys.argv) > 3 else {}
+wexport = json.load(open(sys.argv[4], encoding="utf-8")) if len(sys.argv) > 4 else None
+wcommitted = json.load(open(sys.argv[5], encoding="utf-8")) if len(sys.argv) > 5 else None
+def widened_fields_bad():
+    """Review finding TR4: every committed-only field of a listed instance is either definitionally
+    equal to the default the unmodified side gets (checked in env2), or no definition reachable
+    from env0's translation or from the hand-written external models projects it. Fail closed:
+    a listed field without results, or results for a field that is not listed."""
+    out = []
+    if not any(widened.values()):
+        return out
+    if wexport is None or wcommitted is None:
+        return ["the std trait instances with committed-only fields have no Widen.lean results "
+                "(definitional equality / projections); run through scripts/check-original-linkage.sh"]
+    want = {(n, f) for n, fs in widened.items() for f in fs}
+    for name, res in (("export", wexport), ("committed", wcommitted)):
+        got = {(n, f) for n, fs in res.items() for f in fs}
+        if got != want:
+            out.append(f"the Widen.lean {name} results cover {sorted(got)}, not the listed fields {sorted(want)}")
+    if out:
+        return out
+    for n, f in sorted(want):
+        e, c = wexport[n][f], wcommitted[n][f]
+        if e.get("struct") != c.get("struct") or e.get("index") != c.get("index"):
+            out.append(f"{n}.{f}: structure or field index differs between env0 and env2")
+            continue
+        if c.get("defeq") is True:
+            print(f"[linkage] {n}.{f}: the committed value is definitionally equal to the default "
+                  "of the unmodified side")
+            continue
+        p0, p2 = e["env0_projectors"], c["ext_projectors"]
+        if p0["count"] == 0 and p2["count"] == 0:
+            print(f"[linkage] {n}.{f}: the committed value differs from the default of the unmodified "
+                  f"side ({c.get('reason')}), but no definition of env0 or of the external models "
+                  f"projects {e['struct']}.{f}")
+            continue
+        out.append(f"{n}.{f}: the committed value is not definitionally equal to the default of the "
+                   f"unmodified side ({c.get('reason')}) and {e['struct']}.{f} is projected by "
+                   f"{p0['count']} definition(s) of env0 {p0['first']} and {p2['count']} of the "
+                   f"external models {p2['first']}")
+    return out
+def widened_ok(n, a, b):
+    """The values of the std trait instance N differ only at its committed-only fields (XD2)."""
+    sa, sb, fs = a.get("spine"), b.get("spine"), widened[n]
+    if not sa or not sb or a["body"].rsplit(" safety=", 1)[-1] != b["body"].rsplit(" safety=", 1)[-1]:
+        return False
+    if any(sa[k] != sb[k] for k in ("ctor", "levels", "lams", "nparams", "fields")) \
+            or len(sa["args"]) != len(sb["args"]) or not set(fs) <= set(sa["fields"]):
+        return False
+    allowed = {sa["nparams"] + sa["fields"].index(f) for f in fs}
+    diff = {i for i, (x, y) in enumerate(zip(sa["args"], sb["args"])) if x != y}
+    return bool(diff) and diff <= allowed
+n_wide = 0
 if not x0 or not x1 or not c0 or not c1:
     sys.exit("[linkage] error: a dump of the elaborated translation is empty or has no export section")
 TR, EXT = {"Rmcp.Types", "Rmcp.Funs"}, {"Rmcp.TypesExternal", "Rmcp.FunsExternal"}
@@ -30,7 +95,10 @@ for n, a in sorted(c0.items()):
         n_tr += 1
         if b is None: bad.append(f"{n}: missing in the committed translation"); continue
         for k in ("module", "kind", "lparams", "type", "body"):
-            if a[k] != b[k]: bad.append(f"{n}: {k} differs"); break
+            if a[k] != b[k]:
+                if k == "body" and n in widened and widened_ok(n, a, b):
+                    n_wide += 1; continue
+                bad.append(f"{n}: {k} differs"); break
     elif a["module"] in EXT:
         n_ext += 1
         if b is None or b["module"] not in EXT: bad.append(f"external {n}: missing in the committed templates"); continue
@@ -108,9 +176,13 @@ for k in (f0 - f1): bad.append(f"reducibility of {k[1]} ({k[2]}) is missing or c
 for k in (f1 - f0):
     m, n, st, owner = k
     if owner != m or n in c0: bad.append(f"reducibility {st} of {n} set by the committed {m}")
+for n in sorted(n for n in widened if c0.get(n, {}).get("module") not in TR):
+    bad.append(f"{n}: listed as a std trait instance with committed-only fields, but it is no "
+               "constant of the unmodified-source translation modules")
+bad += widened_fields_bad()
 print(f"[linkage] elaborated: {n_tr} constants and {n_ext} externals of the unmodified-source "
       f"translation compared with the committed translation; {gen} generated instances of "
-      f"committed-only types")
+      f"committed-only types; {n_wide} std trait instance(s) equal up to committed-only fields")
 for x in bad[:50]: print(f"[linkage] DIFFERS (elaborated): {x}")
 if bad:
     sys.exit(f"[linkage] error: {len(bad)} elaborated difference(s): the committed translation does "

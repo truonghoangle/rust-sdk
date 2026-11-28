@@ -49,14 +49,33 @@
 # bracket depth 0 before the type colon, only when a depth-0 `:=` follows, and only after its
 # group closes: not in earlier binders, its own type or its default value) are no lookups (human
 # decisions 2026-11-25 and 2026-11-26, patch 05; reviews a1-2, a2-1, b2-1, a3-1, b3-1, a4-1, b4-1,
-# b4-2; negative controls formal/trusted/evidence/linkage-scan/, git history at 9047c72). Not read by this pre-check, and
+# b4-2; negative controls formal/trusted/evidence/linkage-scan/, git history at 9047c72); nor
+# (human decision XD2, 2026-11-28, patch 08) a one-segment identifier directly before a `:=` of
+# the body that is a binder or a field name: after `let`, `let mut` or `have`, after `(` (a named
+# argument), or a structure-instance field (innermost bracket `{`, no `:` before it inside that
+# brace at its depth, and after `{`, `,`, `with` or first on its line). Two committed-side
+# differences of a std trait-instance block (`@[reducible, rust_trait_impl …]` with a
+# `/rustc/` Source) are accepted (XD2): extra fields that only the committed block sets (Aeneas
+# emits a field only for a method the translated code reaches; the others take the defaults of
+# the Aeneas structure), with `def` becoming `impl_def` when one of them refers to the instance
+# itself; and a token `P.m` read as field access on such a committed-only instance block `P`
+# whose field is `m := P.m` (both readings name the same function). Step 5 then checks that the
+# elaborated values differ exactly at those extra fields, that each extra field is definitionally
+# equal (with the hand-written externals) to the default the unmodified side gets or is projected
+# by no definition reachable from the unmodified-source translation or the external models (review
+# finding TR4), and that every unmodified-source constant elaborates identically. Positive and
+# negative controls of these XD2 rules (the binder branches `let`, `let mut`, `have`, `(x :=` and
+# structure-instance fields; the instance rule; the TR4 rule, on the run's results and end to end
+# on a synthetic translation): `python3 -I scripts/linkage/controls.py <scratch-dir>
+# <controls-dir>` after a passing run (reviews TR4, TR10). Not read by this pre-check, and
 # covered by step 5 (formal/trusted/evidence/linkage-elab/, git history at 9047c72): names
 # resolved through the type of a term (generalized field notation `t.a`, `(e).a`, `e |>.a`, and
 # leading-dot `.a` resolved against the expected type; linkage-scan/limits/), generated names
 # beyond those listed in auto_names (e.g. anonymous instance names), and the forms of reviews
 # a5-1/a5-2/a5-3. Covered by neither: declarations of the hand-written
 # formal/trusted/Rmcp/*.lean (the trusted base; step 5 builds both sides with the generated
-# templates). Not pinned:
+# templates, and reads the hand-written externals only in env2, for the committed-only instance
+# fields of review finding TR4). Not pinned:
 # dependency resolution beyond PINNED_DEPS (workspace members outside crates/ take part in it;
 # both sides of the comparison share it, and the stale-translation check requires a clean tree).
 #
@@ -69,7 +88,9 @@
 # allowed_addresses; N01 and N08 stay) and the opaque entries ...::metadata_resolver::{Lookup, prim};
 # drop the seven patch-06 start points of auth.rs (A04-A10, none ORIGINAL) and the opaque entry
 # ...::auth::prim; drop the four patch-07 start points of mcp_headers.rs (G01-G04, none ORIGINAL)
-# and the opaque entry ...::mcp_headers::prim;
+# and the opaque entry ...::mcp_headers::prim; drop the eight patch-08 start points of
+# elicitation_schema.rs (X29, X32/X35, X33/X38, X36, X37, X40, X74, X75; the other targets
+# X01-X75 stay, ORIGINAL) and the opaque entry ...::elicitation_schema::prim;
 # keep the other exclude entries outside
 # rmcp::model::request_state*; keep hide_marker_traits), then run scripts/aeneas-translate.sh on
 # that copy with RMCP_NO_PATCHES=1 and RMCP_TARGET_SET=phase2 into <scratch-dir>/out, so every
@@ -205,16 +226,27 @@ patch07 = {mh + n for n in (
     "requires_base64", "is_tchar", "encode_header_value", "decode_header_value")}
 if not patch07 <= set(meta["start_from"]):
     sys.exit(f"start_from lacks the patch-07 start points {sorted(patch07 - set(meta['start_from']))}")
+# elicitation_schema.rs start points of translation patch 08 (X29, X32, X33, X35-X38, X40, X74, X75;
+# the `Type::method` patterns `with_default` and `build` of EnumSchemaBuilder each match the
+# SingleSelect and the MultiSelect method). X75 build_unchecked is in no hunk but calls X74.
+es = "rmcp::model::elicitation_schema::"
+patch08 = {es + n for n in (
+    "EnumSchemaBuilder::enum_titles", "EnumSchemaBuilder::with_default",
+    "EnumSchemaBuilder::min_items", "EnumSchemaBuilder::max_items", "EnumSchemaBuilder::build",
+    "ElicitationSchema::new",
+    "ElicitationSchemaBuilder::build", "ElicitationSchemaBuilder::build_unchecked")}
+if not patch08 <= set(meta["start_from"]):
+    sys.exit(f"start_from lacks the patch-08 start points {sorted(patch08 - set(meta['start_from']))}")
 start = [s for s in meta["start_from"]
          if s not in phase1 and s not in patch04 and s not in patch05 and s not in patch06
-         and s not in patch07]
+         and s not in patch07 and s not in patch08]
 if not start:
     sys.exit("start_from has no Phase 2 entries")
 opaque = [o for o in meta["opaque"] if o not in (
     "rmcp::model::request_state_wire::prim", "rmcp::model::request_state::_::now_ms",
     "rmcp::model::skill::prim", "rmcp::transport::auth::metadata_resolver::Lookup",
     "rmcp::transport::auth::metadata_resolver::prim", "rmcp::transport::auth::prim",
-    "rmcp::transport::common::mcp_headers::prim")]
+    "rmcp::transport::common::mcp_headers::prim", "rmcp::model::elicitation_schema::prim")]
 exclude = [e for e in meta["exclude"] if not e.startswith("rmcp::model::request_state")]
 hide = meta.get("hide_marker_traits", False)
 def arr(xs):
@@ -272,9 +304,10 @@ RMCP_SOURCE_ROOT="$SCR/src" RMCP_LLBC_DIR="$SCR/llbc" RMCP_TRANSLATION_DEST="$SC
 # 4. Compare with the committed translation. The two External templates are git-ignored files of
 # formal/translation/Rmcp/ written by aeneas-translate.sh (in CI by the regeneration step just
 # before; locally by the last run).
-python3 -I - "$SCR/out/Rmcp" "$ROOT/formal/translation/Rmcp" <<'PY'
+rm -f "$SCR/instance-fields.json"
+python3 -I - "$SCR/out/Rmcp" "$ROOT/formal/translation/Rmcp" "$SCR/instance-fields.json" <<'PY'
 import os, re, sys
-scratch, committed = sys.argv[1:]
+scratch, committed, widened_out = sys.argv[1:]
 src = re.compile(r"Source: '([^']*)', lines [0-9:-]+")
 macro_src = re.compile(r"macro invocation at: '([^']*)', lines [0-9:-]+")
 ALLOWED_SRC = ("crates/rmcp/src/", "/rustc/", "/cargo/registry/")
@@ -324,13 +357,21 @@ head = re.compile(rf"^(?:@\[.*?\]\s*)*(?:(?:noncomputable|private|partial|unsafe
                   rf"\s*({NAME})?", re.M | re.S)
 def heads(b):
     return [canon(h[1]) if h[1] else "?" for h in head.findall(b)]
-def lex(s):
+def lex(s, ends=None):
     """Tokens of a block: identifiers (canonical, with their dotted segments) and punctuation.
+    If ENDS is a list, the offset in S reached when each token was read is appended to it (the
+    end of an identifier, string or char literal; the start of a punctuation token), so that a
+    newline in s[ends[j-1]:ends[j]] means that the identifier j is the first token of its line.
     One left-to-right pass drops string literals (also raw r#"…"#), char literals, `--` line
     comments and nested `/- … -/` comments, so that none of them can hide or fake code
     (reviews a2-1, b2-1, a3-1, b3-1). An interpolated string (`s!"…"`, `m!"…"`, …, whose `{…}`
     holds code) or a non-ASCII letter Lean does not accept raises Unscannable (review a4-1, b4-1)."""
     out, i, n = [], 0, len(s)
+    if ends is not None:
+        class Toks(list):
+            def append(self, t):
+                list.append(self, t); ends.append(i)
+        out = Toks()
     def prev_is_id(k):
         return k > 0 and (id_rest(s[k - 1]) or s[k - 1] == "»")
     while i < n:
@@ -391,7 +432,7 @@ def lex(s):
         if not c.isspace():
             out.append(("p", c))
         i += 1
-    return out
+    return list(out)
 def code_lines(s):
     """The block with comments and literals blanked (newlines and columns kept)."""
     out, i, n = list(s), 0, len(s)
@@ -520,6 +561,99 @@ def signature_params(toks):
         if depth == 1 and in_group and kind == "p" and t == ":":
             pending, in_group = grp, False
     return {}, set()
+def assign_binders(s):
+    """Indices (into lex(s)) of the identifiers that are binders or field names, not lookups
+    (human decision XD2, 2026-11-28): a one-segment identifier directly before a `:=` after the
+    declaration's own depth-0 `:=` (in the body), that follows `let`, `let mut` or `have` (a
+    binder), or `(` (a named argument), or is a structure-instance field name: its innermost
+    open bracket is `{`, no `:` came before it inside that brace at the brace's depth (so it is
+    no type in `let x : T :=` or `{ x : T // p }`), and it follows `{`, `,` or `with` or is the
+    first token of its line (Aeneas puts instance fields one per line; `calc _ = c := p` is
+    excluded). Everything else before a `:=` stays a lookup: the result type of the signature,
+    a binder's type before a default value, dotted names (fail closed)."""
+    ends = []
+    toks = lex(s, ends)
+    out, stack, body = set(), [], None
+    for j, (kind, t) in enumerate(toks):
+        if kind == "p" and t in OPEN:
+            stack.append([t, False]); continue
+        if kind == "p" and t in CLOSE:
+            if stack: stack.pop()
+            continue
+        if kind == "p" and t == ":" and stack:
+            stack[-1][1] = True
+        if kind == "p" and t == ":=" and not stack and body is None:
+            body = j
+        if (kind != "id" or body is None or j <= body or "." in t or j + 1 >= len(toks)
+                or toks[j + 1] != ("p", ":=")):
+            continue
+        prev = toks[j - 1]
+        if prev in (("id", "let"), ("id", "have")) or (prev == ("id", "mut") and toks[j - 2] == ("id", "let")):
+            out.add(j)
+        elif prev == ("p", "("):
+            out.add(j)
+        elif stack and stack[-1][0] == "{" and not stack[-1][1] and (
+                prev in (("p", "{"), ("p", ","), ("id", "with")) or "\n" in s[ends[j - 1]:ends[j]]):
+            out.add(j)
+    return out
+# A std trait-instance block (human decision XD2, 2026-11-28): Aeneas output of the layout
+#   /-- Trait implementation: [...] Source: '/rustc/…' … -/
+#   @[reducible, rust_trait_impl "…"]
+#   def|impl_def <name> : <type> := {
+#     <field> := <value>          (one per line at indent 2; deeper lines continue it)
+#   }
+STD_SRC = re.compile(r"Source: '/rustc/")
+INST_ATTR = re.compile(r"^@\[reducible, rust_trait_impl\b", re.M)
+INST_FIELD = re.compile(rf"^  ({SEG}) :=(?: .*)?$")
+def std_instance(raw, b):
+    """(keyword, head text, [(field, text)]) of a std trait-instance block B (normalised; RAW is
+    the same block before normalisation), or None for any other block or layout."""
+    hs = head.findall(b)
+    if len(hs) != 1 or hs[0][0] not in ("def", "impl_def") or not STD_SRC.search(raw) \
+            or not INST_ATTR.search(b):
+        return None
+    lines = b.rstrip("\n").split("\n")
+    k = next((j for j, l in enumerate(lines) if l.endswith(":= {")), None)
+    if k is None or lines[-1] != "}":
+        return None
+    fields = []
+    for l in lines[k + 1:-1]:
+        m = INST_FIELD.match(l)
+        if m:
+            fields.append([canon(m.group(1)), l])
+        elif l.startswith("    ") and fields:
+            fields[-1][1] += "\n" + l
+        else:
+            return None
+    return hs[0][0], "\n".join(lines[:k + 1]), [tuple(f) for f in fields]
+def std_instances(path):
+    """{declared name: std_instance(...)} of the std trait-instance blocks of PATH."""
+    raw = open(path, encoding="utf-8").read()
+    _, bs = blocks(path)
+    rbs = [x for x in raw.split("\n\n") if x.strip()]
+    if len(rbs) != len(bs):
+        sys.exit(f"[linkage] error: cannot be scanned: {path}: blocks changed by normalisation")
+    out = {}
+    for r, b in zip(rbs, bs):
+        i = std_instance(r, b)
+        if i is not None:
+            out[heads(b)[0]] = i
+    return out
+def instance_extra(name, mine, theirs):
+    """The fields only the committed std trait-instance block THEIRS sets, if MINE (the
+    unmodified-source block of the same name) equals THEIRS up to them: the same head (`def`
+    may become `impl_def` only if an extra field names the instance itself), every field of MINE
+    with the same text and in the same order in THEIRS, at least one extra field. Else None."""
+    (kw0, h0, f0), (kw1, h1, f1) = mine, theirs
+    extra = [f for f, _ in f1 if f not in {g for g, _ in f0}]
+    if not extra or [x for x in f1 if x[0] not in extra] != list(f0):
+        return None
+    if (kw0, h0) != (kw1, h1):
+        selfref = any(re.search(rf"(?<![\w.]){re.escape(name)}(?![\w.])", t) for f, t in f1 if f in extra)
+        if not (kw0 == "def" and kw1 == "impl_def" and selfref
+                and re.sub(r"^impl_def ", "def ", h1, count=1, flags=re.M) == h0):
+            return None
+    return extra
 FILES = ("Funs.lean", "Types.lean", "FunsExternal_Template.lean", "TypesExternal_Template.lean")
 all_theirs, all_mine = set(), set()
 for fname in FILES:
@@ -553,6 +687,16 @@ for fname in FILES:
                     sys.exit(f"[linkage] error: cannot be scanned: in {p}, {hs[0] if hs else '?'}: {e} "
                              "(plan Section 19)")
 EXTRA = all_theirs - all_mine   # declared (or generated) only in the committed (patched) translation, any file
+# Committed-only std trait-instance blocks (XD2), and the std trait instances of both sides that
+# differ only by committed-only fields (filled below, read by step 5).
+STD_INST_EXTRA = {}
+for fname in FILES:
+    if not os.path.exists(os.path.join(committed, fname)):
+        continue   # reported below
+    for n, i in std_instances(os.path.join(committed, fname)).items():
+        if n in EXTRA:
+            STD_INST_EXTRA[n] = i
+widened = {}
 bad = 0
 for fname in FILES:
     mine_path, theirs_path = os.path.join(scratch, fname), os.path.join(committed, fname)
@@ -579,6 +723,7 @@ for fname in FILES:
     for b in theirs:
         names.update(heads(b))
     extra = EXTRA
+    inst_mine, inst_theirs = std_instances(mine_path), std_instances(theirs_path)
     # Lean resolves an identifier inside `def a.b.c.f` against the namespaces a.b.c, a.b, a and
     # the root: a committed-only declaration named <prefix>.<identifier> could change what an
     # unmodified block means while its text stays the same (plan Section 19). Fail on any such
@@ -600,9 +745,10 @@ for fname in FILES:
         except Unscannable as e:
             sys.exit(f"[linkage] error: cannot be scanned: in {fname}, {hs[0]}: {e} (plan Section 19)")
         bound, binders = signature_params(toks)
+        assign = assign_binders(b)
         seen = set()
         for idx, (kind, tok) in enumerate(toks):
-            if kind != "id" or idx in binders or tok in seen:
+            if kind != "id" or idx in binders or idx in assign or tok in seen:
                 continue
             if tok == hs[0]:
                 continue   # the block's own declared name (and recursive calls) is no lookup
@@ -616,11 +762,16 @@ for fname in FILES:
             for k in range(1, len(segs) + 1):
                 for pre in prefixes:
                     cand = ".".join(([pre] if pre else []) + segs[:k])
+                    if (cand in extra and not pre and k == len(segs) - 1 and cand in STD_INST_EXTRA
+                            and (segs[-1], f"  {segs[-1]} := {tok}") in STD_INST_EXTRA[cand][2]):
+                        print(f"[linkage] `{tok}` in {hs[0]}: the field `{segs[-1]} := {tok}` of the "
+                              f"committed-only std trait instance `{cand}` names the same function")
+                        continue
                     if cand in extra:
                         sys.exit(f"[linkage] error: in {fname}, `{tok}` in {hs[0]} may resolve to the "
                                  f"committed-only declaration `{cand}` (name shadowing by patched "
                                  "code; plan Section 19)")
-    same = 0
+    same = wide = 0
     for b in mine:
         hs = heads(b)
         if len(hs) > 1:
@@ -632,13 +783,26 @@ for fname in FILES:
         if b in have:
             same += 1
             continue
+        if hs and hs[0] in inst_mine and hs[0] in inst_theirs:
+            x = instance_extra(hs[0], inst_mine[hs[0]], inst_theirs[hs[0]])
+            if x is not None:
+                widened[f"rmcp.{hs[0]}"] = x
+                print(f"[linkage] std trait instance {hs[0]} in committed {fname}: equal up to the "
+                      f"fields {', '.join(x)} that only the committed block sets"
+                      + (" (impl_def)" if inst_theirs[hs[0]][0] != inst_mine[hs[0]][0] else ""))
+                wide += 1
+                continue
         bad += 1
         n = hs[0] if hs else b.splitlines()[0][:100]
         print(f"[linkage] {'DIFFERS' if hs and n in names else 'MISSING'} in committed {fname}: {n}")
-    print(f"[linkage] {fname}: {len(mine)} blocks from the unmodified source, {same} identical")
+    print(f"[linkage] {fname}: {len(mine)} blocks from the unmodified source, {same} identical"
+          + (f", {wide} std trait instance(s) equal up to committed-only fields" if wide else ""))
 if bad:
     sys.exit(f"[linkage] error: {bad} block(s) of the unmodified-source translation differ or are "
              "missing; the Phase 2 linkage is not ORIGINAL (plan Section 19)")
+import json
+with open(widened_out, "w", encoding="utf-8") as f:
+    json.dump(widened, f, sort_keys=True)
 print("[linkage] text comparison OK")
 PY
 
@@ -652,7 +816,18 @@ PY
 #  - every non-auxiliary constant of Rmcp.Types/Rmcp.Funs of env0 exists in env1 with the same
 #    module, kind, universe parameters, type and value (inductives, constructors and recursors by
 #    their structure), in a canonical form without binder names, hygiene or metadata and with
-#    auxiliary constants (`_proof_N`, `match_N`, theorems) replaced by their content;
+#    auxiliary constants (`_proof_N`, `match_N`, theorems) replaced by their content; except
+#    (human decision XD2, 2026-11-28) the std trait instances that step 4 found equal up to
+#    committed-only fields ($SCR/instance-fields.json): their values must be the same structure
+#    constructor with the same binders, levels and parameters, differing only at those fields,
+#    and (review finding TR4; scripts/linkage/Widen.lean, env2 = the committed translation with
+#    the hand-written externals of formal/trusted/Rmcp) each such field must either hold a
+#    committed value that the kernel finds definitionally equal, in env2, to the default the
+#    unmodified side gets (the env0 value, transported exactly), or be projected (projection
+#    function, `Expr.proj` at its index, or the structure's recursor) by no definition reachable
+#    from env0's four modules and none reachable from the hand-written externals; otherwise the
+#    check fails. Stated limit: code outside both environments (formal/specs, formal/proofs,
+#    downstream users) is not inspected; it sees the committed values;
 #  - every external of env0 has the same universe parameters and type in env1;
 #  - what Rmcp.Types and Rmcp.Funs export besides constants differs only as new declarations make
 #    it differ: env0's instance entries unchanged (name, priority, scoped or global, class,
@@ -676,7 +851,7 @@ PY
 # constants (`attribute [simp]`, `[inline]`, `[implemented_by]`, `[elab_as_elim]` …), which change
 # proof automation, compilation or downstream elaboration hints, not what any constant is.
 # Reads the Lean packages already built in formal/.lake/packages (see above); builds only the four
-# translation modules, in <scratch-dir>/env0 and env1.
+# translation modules, in <scratch-dir>/env0 and env1 (and env2, see below).
 # Step 5 runs Lean on the committed translation and reads it through Lean, so its result means
 # something only for code that cannot act at build time: first the source rules of
 # scripts/lean-guard.sh (no initialize, run_cmd, #eval, macro_rules, IO, implemented_by or
@@ -685,7 +860,8 @@ PY
 "$ROOT/scripts/lean-guard.sh" sources >/dev/null \
   || die "scripts/lean-guard.sh sources fails: step 5 needs the committed translation to pass it"
 LIN="$ROOT/scripts/linkage"
-for e in 0 1; do rm -rf "$SCR/env$e"; done
+for e in 0 1 2; do rm -rf "$SCR/env$e"; done
+rm -f "$SCR/widen-export.json" "$SCR/widen-committed.json"
 python3 -I "$LIN/make_env.py" "$ROOT" "$SCR/env0" "$SCR/out/Rmcp/Types.lean" "$SCR/out/Rmcp/Funs.lean" \
   "$SCR/out/Rmcp/TypesExternal_Template.lean" "$SCR/out/Rmcp/FunsExternal_Template.lean"
 python3 -I "$LIN/make_env.py" "$ROOT" "$SCR/env1" "$ROOT/formal/translation/Rmcp/Types.lean" \
@@ -698,5 +874,26 @@ for e in 0 1; do
   (cd "$SCR/env$e" && lake env lean --run "$LIN/Dump.lean" "$SCR/env$e/dump.jsonl") \
     || die "env$e: could not read the elaborated constants"
 done
-python3 -I "$LIN/compare_env.py" "$SCR/env0/dump.jsonl" "$SCR/env1/dump.jsonl"
+# The committed-only fields of the std trait instances (review finding TR4): env2 is the committed
+# translation with the hand-written externals of formal/trusted/Rmcp (as `lake build Rmcp
+# RmcpExternal` builds it); scripts/linkage/Widen.lean exports each field's env0 value and the env0
+# definitions projecting it, then checks in env2 whether the committed value is definitionally
+# equal to it and which definitions of the external models project it. Built only when step 4
+# listed a field.
+widen=()
+if python3 -I -c 'import json, sys; sys.exit(0 if any(json.load(open(sys.argv[1])).values()) else 1)' \
+    "$SCR/instance-fields.json"; then
+  python3 -I "$LIN/make_env.py" "$ROOT" "$SCR/env2" "$ROOT/formal/translation/Rmcp/Types.lean" \
+    "$ROOT/formal/translation/Rmcp/Funs.lean" "$ROOT/formal/trusted/Rmcp/TypesExternal.lean" \
+    "$ROOT/formal/trusted/Rmcp/FunsExternal.lean"
+  (cd "$SCR/env2" && lake build Rmcp) > "$SCR/env2/build.log" 2>&1 \
+    || { tail -20 "$SCR/env2/build.log" >&2; die "env2: the committed translation with the hand-written externals does not build (log $SCR/env2/build.log)"; }
+  (cd "$SCR/env0" && lake env lean --run "$LIN/Widen.lean" export "$SCR/instance-fields.json" "$SCR/widen-export.json") \
+    || die "env0: could not export the committed-only fields"
+  (cd "$SCR/env2" && lake env lean --run "$LIN/Widen.lean" committed "$SCR/widen-export.json" "$SCR/widen-committed.json") \
+    || die "env2: could not check the committed-only fields"
+  widen=("$SCR/widen-export.json" "$SCR/widen-committed.json")
+fi
+python3 -I "$LIN/compare_env.py" "$SCR/env0/dump.jsonl" "$SCR/env1/dump.jsonl" "$SCR/instance-fields.json" \
+  ${widen[@]+"${widen[@]}"}
 log "OK: the Phase 2 translation does not depend on any translation patch"

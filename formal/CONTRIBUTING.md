@@ -84,6 +84,8 @@ formal/
     axioms.lock            trusted axioms (empty)
     native-axioms.lock     accepted native-code axioms (Aeneas toStr side conditions; empty)
     translation-pins.txt   pinned lines excused from the metaprogramming rule in generated files
+    issues/                Aeneas/Charon problems met while translating: reproducers and draft
+                           upstream issues (not trust items; they explain the patches)
   specs/                   READ ALL OF IT: what is claimed (top-level public API only)
     README.md              plain-English index of every guarantee; start here
     Defs/ Defs.lean        definitions needed to state the public specs
@@ -919,13 +921,15 @@ just fix                   # fmt and clippy fixes, see CONTRIBUTE.MD
 
 ### Build gate
 
-Every `[[lean_lib]]` sets `leanOptions = { warningAsError = true }` (human decision), and CI runs
-`lake build --wfail`, so any warning (including `sorry`, and warnings replayed from dependencies)
-fails the build; the `#guard_msgs` checks run as part of the build. `scripts/lean-guard.sh` adds
-the `sources`, `build-log`, `axioms` and `aeneas-archive` checks, because a file could switch the
-option off, hide messages, add declarations without a kernel check, or run code during the build.
-What each check does, and its limits, is in [README "Commands"](README.md#commands); run `axioms`
-only after a successful `lake build`.
+Every `[[lean_lib]]` sets `leanOptions = { warningAsError = true }` (human decision); `Rmcp`, the
+generated translation, and `RmcpExternal`, the trusted models, also set `autoImplicit = false`
+(human decisions XD3, XD9), so that an undefined name is a build error instead of a silently
+auto-bound variable. CI runs `lake build --wfail`, so any warning (including `sorry`, and warnings
+replayed from dependencies) fails the build; the `#guard_msgs` checks run as part of the build.
+`scripts/lean-guard.sh` adds the `sources`, `build-log`, `axioms` and `aeneas-archive` checks,
+because a file could switch the option off, hide messages, add declarations without a kernel check,
+or run code during the build. What each check does, and its limits, is in [README
+"Commands"](README.md#commands); run `axioms` only after a successful `lake build`.
 
 ### Guard rules for hand-written Lean
 
@@ -938,6 +942,12 @@ see [Lean style](#lean-style) for the prose replacements):
   (human decision): exactly one `set_option linter.dupNamespace false in` in
   `trusted/Rmcp/FunsExternal.lean`, directly before the docstring, attributes and `def` of
   `zeroize.Zeroize.Blanket.zeroize`, whose Aeneas name repeats `zeroize`.
+- `set_option autoImplicit` / `relaxedAutoImplicit` only with the value `false` (quoted or not,
+  `… in` form included); in `translation/` these option names may not occur at all (human decision
+  XD3: the generated `Rmcp` library sets `autoImplicit = false`, as does `RmcpExternal` (XD9), so
+  an undefined name is an error).
+  No comment between `set_option` and its value, and the linter rule also catches `«…»`-quoted
+  name components (`set_option «linter».x false`).
 - Nothing that runs or registers a metaprogram during the build (`#eval`, `run_cmd`, `elab`,
   `macro`, `syntax`, `initialize`, `simproc`, the metaprogramming monads, metaprogram attributes,
   ...). `notation`, `infix`, local instances and `simp` attributes are allowed. Write a custom tactic

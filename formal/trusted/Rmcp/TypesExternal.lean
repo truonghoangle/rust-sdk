@@ -31,7 +31,11 @@ is a definition over the `opaque` carrier `ExtModel.SerdeJsonValue`. Translation
 `str::Bytes`, `HashSet` and `serde_json::Map`. Translation patch 05 (targets N01, N03–N11 of
 `metadata_resolver.rs`) added two structures, `SocketAddrV4` and `SocketAddrV6`, and two
 abstract types over `opaque` carriers, `url::Url` (`ExtModel.UrlCarrier`) and the `rmcp`
-newtype `Lookup` (`ExtModel.LookupCarrier`) (last section). This module declares no axiom.
+newtype `Lookup` (`ExtModel.LookupCarrier`). Translation patch 08 (targets X01–X75 of
+`elicitation_schema.rs`, human decision XD1) added the structure `BTreeMap` (its entries in key
+order), and human decision XD3 the root types `F64` and `F32`, abstract over the `opaque`
+carriers `ExtModel.F64Carrier` and `ExtModel.F32Carrier` (last sections). This module declares
+no axiom.
 
 The `@[rust_type]` names and the source lines in the docstrings are those Aeneas generated.
 Source paths: `/rustc/library/…` is the `rust-src` of the pinned toolchain `nightly-2026-09-17`
@@ -499,3 +503,72 @@ def transport.auth.metadata_resolver.Lookup : Type := ExtModel.LookupCarrier.typ
 instance transport.auth.metadata_resolver.instNonemptyLookup :
     Nonempty transport.auth.metadata_resolver.Lookup :=
   ExtModel.LookupCarrier.property
+
+/-! ## Types of the elicitation schema builders (X01–X75, translation patch 08) -/
+
+/-- [alloc::collections::btree::map::BTreeMap]
+    Source: '/rustc/library/alloc/src/collections/btree/map.rs', lines 189:0-193:1
+    Name pattern: [alloc::collections::btree::map::BTreeMap]
+    Visibility: public
+
+**Model: the entries of the map in key order** (as `serde_json.map.Map`, whose Rust type is a
+`BTreeMap<String, Value>`). The Rust struct holds the root node, the length and the allocator
+(lines 189–203). `entries` lists the key-value pairs in the order in which the `BTreeMap`
+iterates them, ascending by the `Ord` instance of `K` with which the map is used (for `String`
+keys, the byte order of the UTF-8 encodings, `ExtModel.bytesCmp`), with pairwise distinct keys,
+so that each Rust map has exactly one model value (human decision XD1, 2026-11-28). The node
+structure and the allocator `A` (always `Global` in the translation) are not modelled. The
+invariant is not part of the type (as for `serde_json.map.Map`): the models of
+`BTreeMap::default` (`[]`) and `BTreeMap::insert` (`ExtModel.btreeInsert`, insertion at the
+sorted position) keep it for a lawful `Ord` (proved for `String` keys in
+`Proofs.External.ElicitationSchema`). -/
+@[rust_type "alloc::collections::btree::map::BTreeMap"]
+structure alloc.collections.btree.map.BTreeMap (K : Type) (V : Type) (A : Type) : Type where
+  /-- The key-value pairs, ascending by key. -/
+  entries : List (K × V)
+
+/-! ## Floating-point types (human decision XD3, 2026-11-28)
+
+The pinned Aeneas library defines no type for Rust's `f32` and `f64`, yet Aeneas prints them as
+`F32` and `F64` in the generated `Rmcp.Types` (the field `priority : Option F32` of
+`model.annotated.Annotations`, and `minimum`, `maximum`, `default : Option F64` of
+`model.elicitation_schema.NumberSchema`). They are declared here, at the root (where the
+generated code, inside `namespace rmcp`, finds them), as abstract types over `opaque` carriers,
+which add no axiom. No translated target and no external model creates, reads or compares a
+float: the targets X01–X75 only move the `Option` fields of `NumberSchema` and `Annotations`
+values they receive (the `f64` builders of `NumberSchema` are not targets). No statement may
+inspect a value of these types (there is nothing to inspect: no operation is declared). The
+library `Rmcp` is built with `autoImplicit = false` (`formal/lakefile.toml`), so a type name
+missing in the translation is an error and not an automatically bound variable, as these two
+were before. -/
+
+/-- The carrier of `F64`: a Rust `f64` (IEEE 754 binary64), an opaque type together with the fact
+that it has an element (`NonemptyType`, as `ExtModel.LookupCarrier`; every IEEE 754 format has
+values). **Opaque**: never created, read or compared by the translated code or a model. Adds no
+axiom. -/
+opaque ExtModel.F64Carrier : NonemptyType
+
+/-- Rust's `f64`, which the pinned Aeneas prints as `F64` without defining it (human decision
+XD3). **Model: an abstract type** over the `opaque` carrier `ExtModel.F64Carrier`; the
+translated targets only move values of it (the `Option F64` fields of `NumberSchema`). -/
+def F64 : Type := ExtModel.F64Carrier.type
+
+/-- An `F64` exists (the carrier's property). -/
+instance instNonemptyF64 : Nonempty F64 :=
+  ExtModel.F64Carrier.property
+
+/-- The carrier of `F32`: a Rust `f32` (IEEE 754 binary32), an opaque type together with the fact
+that it has an element (`NonemptyType`, as `ExtModel.LookupCarrier`; every IEEE 754 format has
+values). **Opaque**: never created, read or compared by the translated code or a model. Adds no
+axiom. -/
+opaque ExtModel.F32Carrier : NonemptyType
+
+/-- Rust's `f32`, which the pinned Aeneas prints as `F32` without defining it (human decision
+XD3). **Model: an abstract type** over the `opaque` carrier `ExtModel.F32Carrier`; the
+translated code only moves values of it (the field `priority : Option F32` of
+`model.annotated.Annotations`). -/
+def F32 : Type := ExtModel.F32Carrier.type
+
+/-- An `F32` exists (the carrier's property). -/
+instance instNonemptyF32 : Nonempty F32 :=
+  ExtModel.F32Carrier.property

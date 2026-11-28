@@ -45,13 +45,13 @@ external models are in `proofs/Proofs/Internal/` (see "Layout"). E05 and E06 are
 (they belonged to `mac_v1`/`mac_v2`, which patch 01 deletes).
 
 **What `patch-0N` means for the claim.** The `patch-01` results are about upstream plus the
-`request_state_wire` refactor of translation patch 01 (rule **D2**, the "D2 fallback": the
-refactor did not land in the SDK source, so it is a translation patch applied only to the
-translated copy). The link between the patched and the unpatched code is tested, not proved: the
-patch's byte-identity regression tests run on the patched copy (`patched-tests.yml`), and a
-differential run of upstream against the patched copy found no difference. If the refactor
-lands upstream, patch 01 can be deleted and these targets can become `ORIGINAL`. Patches 03, 04,
-05, 06 and 07 are small behaviour-preserving rewrites (each hunk is explained in the patch header).
+`request_state_wire` refactor of translation patch 01 (rule **D2**, the "D2 fallback": the refactor
+did not land in the SDK source, so it is a translation patch applied only to the translated copy).
+The link between the patched and the unpatched code is tested, not proved: the patch's byte-identity
+regression tests run on the patched copy (`patched-tests.yml`), and a differential run of upstream
+against the patched copy found no difference. If the refactor lands upstream, patch 01 can be
+deleted and these targets can become `ORIGINAL`. Patches 03, 04, 05, 06, 07 and 08 are small
+behaviour-preserving rewrites (each hunk is explained in the patch header).
 
 **Axioms.** Every `#print axioms` list is within `[propext, Classical.choice, Quot.sound]` (Lean's
 standard axioms; some lists are shorter). `trusted/axioms.lock` and `trusted/native-axioms.lock`
@@ -131,6 +131,17 @@ their statements were signed off and proved on 2026-11-28
   told apart from a single bare value containing `, `, and `header_str` (lines 394–413) rejects
   duplicates only before such a merge.
 
+- **H19–H23 (suspected, `model/elicitation_schema.rs`; decision XD4).** Found by probes on the Rust
+  code in the translation stage of the elicitation schema builders (2026-11-28); their statements
+  are pending (specification stage), which will state the actual behaviour. H19:
+  `ElicitationSchemaBuilder::build` returns `Ok` for a schema with no property, although its
+  documentation lists an empty schema as an error. H20: `required` can hold the same name several
+  times (`required_string("a")` twice, `mark_required("a")`), which JSON Schema forbids. H21: the
+  single setters accept `min_length > max_length`, `minimum > maximum` and a default outside the
+  range, while `with_length`/`with_range` reject the bounds. H22: a multi-select enum accepts
+  `min_items` greater than the number of values and duplicate defaults. H23: the documentation of
+  `string_property` says "(required)", but the property is not required.
+
 No bug was found in the request-state codec or `skill.rs`. Recorded
 behaviours, not bugs: a single-key codec built with `new_unchecked` or the deprecated `new`
 accepts a key of any length (only `try_new` checks it); `rs1_fallbacks_verify` panics (`expect`)
@@ -161,6 +172,11 @@ if an rs1 fallback id is not a key, which the keyring constructors prevent.
 
 ### Open items
 
+- **Elicitation schema builders (X01–X75)**: translated (patch 08, 65 `ORIGINAL`, 10
+  `patch-08`); specification and proofs pending. Draft upstream Aeneas issues (undefined float
+  types, `keys().cloned().collect()`, `Cow<'static>` in a loop, generated `Map`/`Zip` iterator
+  fields) are in `trusted/issues/aeneas-elicitation-schema.md`, not filed; its issue 6 (an
+  internal error on the original `with_default` loop) is not reduced to a small reproducer.
 - **CI has not run on GitHub** (nothing pushed yet). The three workflows (`lean-build.yml`,
   `aeneas-translation.yml`, `patched-tests.yml`) were checked locally only. Every `ORIGINAL`
   linkage (Phase 2, the 13 ORIGINAL `skill.rs` targets, N01, N08) rests on local runs of
@@ -295,12 +311,13 @@ scripts/check-original-linkage.sh <scratch-dir>   # ORIGINAL linkage check
 `linkage: ORIGINAL`. It copies the tracked files into `<scratch-dir>` (outside the repository),
 drops from the copy's Charon settings the start points that need a translation patch
 (`rmcp::model::request_state{,_wire}`; K05–K07, K13–K16; N03, N05–N07, N10, N11 and the helpers
-`with_base_url`, `proxy_host`, `allowed_addresses`) and the opaque entries that exist only in the
-patched copy (`…::request_state_wire::prim`, `…::request_state::_::now_ms`,
-`rmcp::model::skill::prim`, `rmcp::transport::auth::metadata_resolver::{Lookup, prim}`), and
-translates it with `aeneas-translate.sh` under `RMCP_NO_PATCHES=1` and `RMCP_TARGET_SET=phase2`
-(no patch; only ORIGINAL targets checked; the translate script then also fails if a target in
-`PATCH04_TARGETS` or `PATCH05_TARGETS` translates from the unmodified source, which would mean the
+`with_base_url`, `proxy_host`, `allowed_addresses`; X29, X32, X33, X35–X38, X40, X74, X75) and the
+opaque entries that exist only in the patched copy (`…::request_state_wire::prim`,
+`…::request_state::_::now_ms`, `rmcp::model::skill::prim`, `rmcp::model::elicitation_schema::prim`,
+`rmcp::transport::auth::metadata_resolver::{Lookup, prim}`), and translates it with
+`aeneas-translate.sh` under `RMCP_NO_PATCHES=1` and `RMCP_TARGET_SET=phase2` (no patch; only
+ORIGINAL targets checked; the translate script then also fails if a target in `PATCH04_TARGETS`,
+`PATCH05_TARGETS` or `PATCH08_TARGETS` translates from the unmodified source, which would mean the
 patch list disagrees with the call graph). These switches are refused unless the output goes to a
 scratch directory outside the repository. Then:
 
@@ -311,13 +328,19 @@ scratch directory outside the repository. Then:
   list must be exactly `AuthorizationManager` (a type, **H4**) and the SDK-side `exclude` list
   (without the `rmcp::model::request_state` entries) exactly `["serde"]`.
 - **Step 4, text pre-check** (fail-closed, not the guarantee): every block of the unpatched
-  translation equals the committed one up to the `Source:` field, and no committed-only
-  declaration, nor a name Lean generates for a committed-only structure, inductive or class
-  (`mk`, `rec`, `casesOn`, `noConfusion`, projections, …), shadows an identifier of an ORIGINAL
-  block. The scan reads only the layout Aeneas emits and stops with "cannot be scanned" on
-  anything else (unknown header commands, `where`/`let rec`, `extends`, interpolated strings,
-  unusual structure layouts, non-ASCII letters, …). It does not read names resolved through the
-  type of a term (field notation, leading dot) or other generated names; step 5 covers them.
+  translation equals the committed one up to the `Source:` field, and no committed-only declaration,
+  nor a name Lean generates for a committed-only structure, inductive or class (`mk`, `rec`,
+  `casesOn`, `noConfusion`, projections, …), shadows an identifier of an ORIGINAL block. The scan
+  reads only the layout Aeneas emits and stops with "cannot be scanned" on anything else (unknown
+  header commands, `where`/`let rec`, `extends`, interpolated strings, unusual structure layouts,
+  non-ASCII letters, …). It does not read names resolved through the type of a term (field notation,
+  leading dot) or other generated names; step 5 covers them. Since patch 08 (decisions XD2, XD5): an
+  identifier directly before `:=` that is a binder (`let`, `have`, a named argument) or a
+  structure-instance field is not read as a lookup; a standard-library trait-instance block (e.g.
+  `String`'s `Eq`, `Ord`, `Clone`) may differ from the committed one only by fields that only the
+  committed block sets, because other committed code uses more of that trait; and `P.m` is accepted
+  when `P` is such a committed-only instance whose field is literally `m := P.m` (both readings name
+  the same function).
 - **Step 5, the elaborated comparison** (decides `ORIGINAL`). `scripts/linkage/make_env.py` builds
   two Lean environments the same way, `<scratch-dir>/env0` (unmodified-source translation) and
   `env1` (committed), each with its own generated External templates as externals
@@ -340,7 +363,13 @@ scratch directory outside the repository. Then:
   `trusted/Rmcp/*.lean` (both sides use the templates); (2) attributes that committed code attaches
   to existing constants (`simp`, `inline`, `grind`, `elab_as_elim`; `implemented_by` is banned),
   which change proof automation or compilation hints, not what any constant is. Dependency
-  resolution beyond `PINNED_DEPS` is shared by both sides, not pinned by the check.
+  resolution beyond `PINNED_DEPS` is shared by both sides, not pinned by the check. A widened
+  standard-library instance (step 4) passes step 5 only if each committed-only field is
+  definitionally equal, with the hand-written models, to the value the unmodified side gets, or
+  is projected by no definition reachable from the unmodified-source translation or the models
+  (`scripts/linkage/Widen.lean`); code outside both environments (`specs/`, `proofs/`,
+  downstream users) is not inspected. The controls of the elicitation-stage rules run with
+  `scripts/linkage/controls.py`.
 
 The negative controls of steps 4 and 5 are archived (see "Archive"). `aeneas-translation.yml` runs
 the check after the stale-translation check, with `formal/.lake/packages` cached under the key of
@@ -386,7 +415,10 @@ construct the kernel does not check, so `scripts/lean-guard.sh` (run by CI; chec
 
 - `lakefile.toml` is not exactly the five libraries (`Rmcp` in `translation/`, `RmcpExternal` in
   `trusted/`, `Defs` and `Specs` in `specs/`, `Proofs` in `proofs/`, fixed roots), each with
-  exactly `name`, `srcDir`, `roots` and `leanOptions = { warningAsError = true }`; the package
+  exactly `name`, `srcDir`, `roots` and `leanOptions = { warningAsError = true }` (for `Rmcp`
+  and `RmcpExternal` exactly `{ warningAsError = true, autoImplicit = false }`, human decisions
+  XD3 and XD9, so that an undefined name in the generated translation or a trusted model is a
+  build error); the package
   sets anything but `name`, `defaultTargets`, one `[[require]]` (aeneas) and the libraries; or
   `lakefile.lean` exists;
 - `lake-manifest.json` or `lean-toolchain` differ from the recorded values (see "Toolchain"; elan
@@ -399,7 +431,11 @@ construct the kernel does not check, so `scripts/lean-guard.sh` (run by CI; chec
   - `warningAsError`, `sorry`, `sorryAx`, `admit`, `native_decide`, `bv_decide`, `skipKernelTC`,
     `proofAsSorry`, `implemented_by`, `extern`, `unsafe`, `ofReduceBool`, `ofReduceNat`,
     `trustCompiler`; the `native` option of `decide`; any `debug.` option;
-    `set_option linter.<name> false` (allowed in `translation/`); `axiom` outside `trusted/`;
+    `set_option linter.<name> false` (allowed in `translation/`; also caught with `«…»`-quoted
+    name components); `axiom` outside `trusted/`;
+  - in `translation/`, the option names `autoImplicit` and `relaxedAutoImplicit` at all (decision
+    XD3); elsewhere, `set_option` of either with any value but `false` (quoted or not, the `… in`
+    form included); in every file, a comment between `set_option` and its value;
   - a keyword or name that runs code during the build (`META_WORDS` in `scripts/lean_guard.py`:
     `run_cmd`, `run_tac`, `elab`, `macro`, `syntax`, `initialize`, `simproc`, `eval%`, `trace`,
     `addDecl`, `modifyEnv`, the metaprogramming monads `IO`, `CoreM`, `MetaM`, `TacticM`, … and
@@ -527,7 +563,7 @@ Accepted residual limits (human decision, 2026-11-22):
 | `README.md` | — | this file: results, configuration, commands, trusted base |
 | `CONTRIBUTING.md` | — | how to contribute: workflow, style, PR format, review checklist |
 | `translation/` | `Rmcp` | generated by Aeneas, never edited by hand |
-| `trusted/` | `RmcpExternal` | `patches/` (translation patches 01, 03, 04, 05, 06, 07 and the test-only patch 02); `Rmcp/` (hand-written external models: definitions, structures and `opaque` constants, no axiom); `evidence/README.md` (justification of each external model, its Rust sources and tests, and the map of upstream tests); `aeneas-bundle.sha256` (expected digests of the Aeneas release assets); `axioms.lock`, `native-axioms.lock` (both empty); `translation-pins.txt` |
+| `trusted/` | `RmcpExternal` | `patches/` (translation patches 01, 03, 04, 05, 06, 07, 08 and the test-only patch 02); `Rmcp/` (hand-written external models: definitions, structures and `opaque` constants, no axiom); `evidence/README.md` (justification of each external model, its Rust sources and tests, and the map of upstream tests); `aeneas-bundle.sha256` (expected digests of the Aeneas release assets); `axioms.lock`, `native-axioms.lock` (both empty); `translation-pins.txt` |
 | `specs/` | `Defs`, `Specs` | the top-level public API only (public functions called by no other verified function): `README.md` (index of every guarantee), the definitions used by public statements (`Defs/`), the public spec files (`Specs/`); `Drafts/` is in no library |
 | `proofs/` | `Proofs` | proofs; laws of the external models (`Proofs/External/`); internal spec files for intermediate public functions (called by a top-level one), private, crate-internal and patch-only functions and the model laws (`Proofs/Internal/`, same format as `specs/Specs/`); definitions used only by them (`Proofs/Defs/`) |
 
@@ -553,7 +589,7 @@ spec statement means (see "What CI checks").
 
 Summary: Charon, Aeneas and Lean (see "Tools"); the translated configuration; the translation
 patches; the external models; the codec-state premises; the statements in `specs/` and
-`proofs/Proofs/Internal/`; the exclusions. **0 trusted axioms, 0 native-code axioms, 24 `opaque`
+`proofs/Proofs/Internal/`; the exclusions. **0 trusted axioms, 0 native-code axioms, 26 `opaque`
 constants.**
 
 **Patches** (`trusted/patches/`, applied by `scripts/apply-patches.sh` with `patch -p1 -F 0` in
@@ -563,9 +599,10 @@ upstream):
 - `01-request-state-wire.patch` (rule D2): the `request_state_wire` refactor of
   `RequestStateCodec` and its byte-identity regression tests (non-test lines equal those of the
   original refactor commit `f8fb6a7`).
-- `02-phase2-tests.patch` (test only, **H3**): 46 `#[cfg(test)]` boundary tests (34 for Phase 2
-  boundary cases no upstream test covers, 12 for R09–R12 and R15). It changes no translated item
-  (the re-translation is byte-identical); 847 library tests pass on the patched copy.
+- `02-phase2-tests.patch` (test only, **H3**): 71 `#[cfg(test)]` boundary tests (34 for Phase 2
+  boundary cases no upstream test covers, 12 for R09–R12 and R15, 13 for the paths of patch 06, 5
+  for patch 07 and 7 for patch 08). It changes no translated item (the re-translation is
+  byte-identical); 872 library tests pass on the patched copy.
 - `03-request-state-public.patch` (+6/−2 lines of `request_state.rs`): `let ttl = options.ttl;`
   before the `match` in `seal_at` (matching on a field read through a shared reference stops
   Aeneas with "Unreachable"; the value is `Copy`), and an explicit `match` in place of
@@ -605,13 +642,26 @@ upstream):
   and rewrites of `requires_base64` (G01), `is_tchar` (G02, the quote written
   `c == char::from(b'\'')` to avoid an Aeneas printing defect), `encode_header_value` (G03) and
   `decode_header_value` (G04).
+- `08-elicitation-schema.patch` (hunks prim, E1–E8 on `model/elicitation_schema.rs`, decision XD1):
+  the opaque module `elicitation_schema::prim` (`titles_mismatch_message`, the original `format!`;
+  `sorted_keys`, the original `keys().cloned().collect()`), error literals built with `.to_owned()`
+  instead of `.to_string()`, the `for` loops with an early return rewritten with `iter().all`, and
+  the `zip`/`map`/`collect` chain of the enum `build`s replaced by a translated helper
+  `const_titles`. It changes X29, X32, X33, X35–X38, X40, X74 and X75; the other 65 elicitation
+  targets are `ORIGINAL`. Not observable in returned values: `ElicitationSchemaBuilder::build`
+  computes the key list before its check (one more allocation on the error path; in the model the
+  list is `collectVec`, so the error path too needs `24 * len ≤ isize::MAX`, true of every Rust
+  map), and the `one_of`/`any_of` vectors may get another capacity (visible only through
+  `Vec::capacity`; capacity is not modelled).
 
 Each patch header explains every hunk: the error it avoids and why the computed values are
-unchanged. Patches 03–07 add and change no test.
+unchanged. Patches 03–08 add and change no test; patch 02 holds the boundary tests of patches 06,
+07 and 08.
 
 **Charon settings** (`[package.metadata.charon]` of `crates/rmcp/Cargo.toml`). Opaque (signature
 kept, contract given by a model): `rmcp::model::request_state_wire::prim` (HMAC and base64 `Engine`
-types), `rmcp::model::skill::prim`, `rmcp::transport::auth::metadata_resolver::{prim, Lookup}`,
+types), `rmcp::model::skill::prim`, `rmcp::model::elicitation_schema::prim`,
+`rmcp::transport::auth::metadata_resolver::{prim, Lookup}`,
 `rmcp::model::request_state::_::now_ms` (system clock), the type
 `rmcp::transport::auth::AuthorizationManager` (H4; it appears in no generated file), and the
 external crates `zeroize`, `base64`, `hmac`, `sha2`, `thiserror`, `chrono`, `serde_json`,
@@ -637,7 +687,7 @@ per model in [`trusted/evidence/README.md`](trusted/evidence/README.md)). Each e
 `structure` (or an abstract type over an `opaque` carrier), each external function a definition
 with the generated name and signature (keeping the template's `@[rust_type]`/`@[rust_fun]`
 attribute where it has one). They declare **no axiom** (human decision 2026-11-23). What a model
-cannot compute is one of 24 `opaque` constants, which add no axiom:
+cannot compute is one of 26 `opaque` constants, which add no axiom:
 
 | Area | Models | `opaque` constants |
 |---|---|---|
@@ -648,6 +698,8 @@ cannot compute is one of 24 `opaque` constants, which add no axiom:
 | Patch 05 | the 5 `metadata_resolver::prim` functions, `url::Url::{parse, host, host_str}`, 8 `core`/`alloc` functions; structures `SocketAddrV4`, `SocketAddrV6`; abstract `url::Url`, `Lookup` | `UrlCarrier`, `LookupCarrier : NonemptyType`, `urlParse`, `urlHost`, `urlHostStr`, `systemLookup`, `proxyEnvValues` |
 | Patch 06 | the `auth::prim` functions (exact byte models; `trim` as Unicode `White_Space`; the log events `ok ()`), `url::Url::{scheme, path, fragment, join, port_or_known_default, clone, eq}`, `Option::zip`, `str::eq_ignore_ascii_case` | `urlScheme`, `urlPath`, `urlFragment`, `urlJoin`, `urlSerialization`, `urlPort`, `issuerUrl` |
 | Patch 07 | the 8 `mcp_headers::prim` functions (the control test byte-level on every string; standard padded Base64 as the reviewed URL-safe `b64`/`b64Decode` with the alphabet renamed, decoder with Rust's buffer-size guard), `char::is_ascii_alphanumeric`, `slice::last`, `Option::copied` | none |
+| Patch 08 | the 2 `elicitation_schema::prim` functions; `BTreeMap` (entries ascending by key, distinct keys), its `Default` and `insert` (linear walk with the caller's `Ord` in Rust's comparison orientation, the stored key kept on `Equal`); `Ord`/`PartialOrd` for `String` (byte order, `ExtModel.bytesCmp`); `Default` for `Vec`; `slice::Iter::all`; `<str as Debug>::fmt` (total, see below) | none |
+| Floats (XD3) | root types `F64`, `F32`, which the translation names but no target creates or inspects | `F64Carrier`, `F32Carrier : NonemptyType` |
 
 `Borrow::borrow` (blanket), `Option::ok_or`, `Result::map_err` and `Vec::is_empty` are defined in
 the Aeneas library and belong to the Aeneas trust item (lead decision **N8**). The model citations
@@ -683,6 +735,16 @@ may promise a result where Rust panics or behaves otherwise.
   `mcp_headers::prim::wrap_sentinel` (patch 07).
 - **`HashMap::get`, `contains_key`, `entry`** assume `Hash` and `Eq` agree and do not fail (only
   `String` keys with `str`/`String` queries occur).
+- **`BTreeMap::insert`** (patch 08) assumes the entries are sorted by key with distinct keys and
+  that `Ord` is total and does not fail (only `String` keys occur, for which
+  `btreeInsert_stringOrd_eq_ok` shows it equals the reviewed `mapInsert`). The `BTreeMap` type
+  itself does not carry the sortedness invariant, so statements about a map the caller supplies
+  assume it.
+- **`<str as Debug>::fmt`** (patch 08) is total, not exact (it writes nothing); it is reached only
+  through `Result::expect` in `build_unchecked`, whose Aeneas model never calls it.
+- **`elicitation_schema::prim::sorted_keys`** is `collectVec`, which fails when
+  `24 * len > isize::MAX`; no Rust map is that large.
+- **`F64`, `F32`** (decision XD3) are opaque carrier types: no float value is modelled.
 - **`serde_json::from_slice`**: a `Deserialize` impl that panics, aborts or does not terminate, or
   that is non-deterministic or has side effects (global or thread-local state, a random number
   generator), is not modelled.
@@ -805,6 +867,9 @@ review; other files cite them by name.
   the non-sentinel path, where it is needed), which is weaker than `ExtModel.IsUtf8 value.val` and
   shown exact by `Theorems.mcp_headers.decode_header_value_fail_undef`.
 - `systemLookup` is only stored; no rule is needed.
+- **The float rule** (decision XD3). No statement inspects, compares or constructs a value of `F64`
+  or `F32` (the number fields of `NumberSchema` and `Annotations.priority`); they are opaque
+  carriers, and the translated targets only move them.
 
 ### Namespace rule for `trusted/`
 
@@ -843,6 +908,8 @@ trusted root imports passes both layers (`RmcpExternal` should import only `Aene
 | T4, P1, R1, T1 | The `proxyEnvValues` rules under "Review rules". |
 | AD1–AD8 | Translation patch 06 (`auth.rs` A04–A10, 2026-11-26 and 2026-11-27): the `check_*` helpers and the private `IssuerError` mirror are the verified targets, the `validate_*` wrappers unverified glue, A04 linkage `patch-06` (AD1); the moved tracing events keep `target: "rmcp::transport::auth"` (AD2); `#[allow(clippy::nonminimal_bool)]` for `!(a == b)` (AD3); seven new `opaque` constants, `str::trim` exact (AD4); boundary tests for the rewritten paths in patch 02 (AD5); `#[allow(clippy::enum_variant_names)]` on `IssuerError` (AD6); the `issuer_url` panic above `u32::MAX` bytes stays a stated exception, with a premise in A09 (AD7); the `Url::join` drive-letter panic likewise, with an `http`/`https` base premise in A07 (AD8). |
 | GD1–GD3 | Translation patch 07 (`mcp_headers.rs` G01–G04, 2026-11-27): adopted as drafted with an opaque `prim` module and the quote workaround (GD1); exact models: byte-level control test, Base64 by alphabet renaming, buffer guard kept (GD2); boundary tests in patch 02 (GD3); lead decision: the identity model of `Option::copied` is allowed although its Lean type merges `Option<&T>` and `Option<T>` (its value does not depend on which). |
+| XD1–XD8 | Translation patch 08 (`elicitation_schema.rs` X01–X75, 2026-11-28): adopted as drafted with an opaque `prim` module, the `BTreeMap`, `String` order, `Vec` default and `Iter::all` models, and `<str as Debug>::fmt` as a total model (XD1); the linkage check extended so that targets no hunk touches are `ORIGINAL` (XD2, XD5–XD7; see "The linkage check"); `F64`/`F32` as opaque carriers and `autoImplicit = false` for `Rmcp` (XD3); the suspected Rust bugs recorded as H19–H23 (XD4); 7 boundary tests in patch 02 (XD8). |
+| XD9 | `autoImplicit = false` also for `RmcpExternal`, the hand-written trusted models (2026-11-28), raised by the final translation review. |
 | G spec | G01–G04 specification cycle (2026-11-27 and 2026-11-28): the main specs keep the exact premises (E), (U), (D) with plain corollaries, and the conditional UTF-8 premise (U) of G04 is an approved exception to the UTF-8 rule (i) (see "Review rules"); CD1 (unneeded wrap accepted) is H17, CD7 (list characters bare) is H18; CD2 (bare value the encoder would wrap accepted) is a note, recorded in H17 as its second cause; CD3 (encoder stricter than RFC 9110) and CD4 (case-sensitive sentinel, strict padded standard Base64) are intended, matching SEP-2243; CD5 (error text "not valid Base64" for a non-UTF-8 payload) and CD6 (empty value sent as an empty header) are notes. Signed off 2026-11-28. |
 | N1, N5, N8, N9, N10, N11 | Lead decisions of the Aeneas upgrade: Charon options checked through `translation.json` (N1), native lock empty (N5), four std models moved to the Aeneas library (N8), model citations re-checked (N9), `--wfail` build gate with an empty allowlist (N10), kernel replay with `Lean.Kernel.Environment.replay` (N11). |
 

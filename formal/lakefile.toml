@@ -13,7 +13,8 @@ name = "rmcp_formal"
 # `lake build` was the gate; nightly-2026.11.24-fb44cb4 has none.)
 # scripts/lean-guard.sh (scripts/lean_guard.py) parses this file and fails CI unless it
 # has exactly the five libraries below, with these srcDirs and roots, each with exactly
-# the keys name/srcDir/roots/leanOptions and `leanOptions = { warningAsError = true }`,
+# the keys name/srcDir/roots/leanOptions and `leanOptions = { warningAsError = true }`
+# (for `Rmcp` and `RmcpExternal` exactly `{ warningAsError = true, autoImplicit = false }`),
 # and no other package-level key than name, defaultTargets, require and lean_lib; it also
 # fails if a lakefile.lean exists or a source file switches the option off.
 # `Rmcp` and `RmcpExternal` are not default targets; `lake build Rmcp RmcpExternal`
@@ -35,16 +36,23 @@ subDir = "backends/lean"
 # The roots list each generated module exactly. A bare `Rmcp` root would claim
 # every `Rmcp.*` module, including `Rmcp.TypesExternal`/`Rmcp.FunsExternal` of
 # `RmcpExternal`. Aeneas (with -split-files -subdir Rmcp) generates no `Rmcp.lean`.
+# `autoImplicit = false` (human decision XD3, 2026-11-28): a name the translation uses but
+# nothing defines is an error, not an automatically bound implicit variable (the pinned
+# Aeneas prints Rust's f32/f64 as `F32`/`F64` without defining them; they are now defined
+# in trusted/Rmcp/TypesExternal.lean). scripts/lean_guard.py allows this one extra option
+# for this library and `RmcpExternal` (XD9) only.
 [[lean_lib]]
 name = "Rmcp"
-leanOptions = { warningAsError = true }
+leanOptions = { warningAsError = true, autoImplicit = false }
 srcDir = "translation"
 roots = ["Rmcp.Types", "Rmcp.Funs"]
 
 # Hand-written externals, opaque functions and axioms (trusted base).
+# `autoImplicit = false` (human decision XD9, 2026-11-28): as for `Rmcp`, an undefined name in a
+# trusted model is a build error, not an automatically bound implicit variable.
 [[lean_lib]]
 name = "RmcpExternal"
-leanOptions = { warningAsError = true }
+leanOptions = { warningAsError = true, autoImplicit = false }
 srcDir = "trusted"
 roots = ["Rmcp.TypesExternal", "Rmcp.FunsExternal"]
 

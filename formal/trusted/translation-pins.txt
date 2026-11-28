@@ -14,5 +14,5 @@
 #
 # T06 `transport.async_rw.is_standard_method` compares the method with the MCP method name
 # "initialize", a Lean command keyword.
-file translation/Rmcp/Funs.lean sha256 a087296b21a2158506cfdefda1396ca481e811725e3618dc8d1f844638b57172
-line 3790 initialize   let b ← Str.Insts.CoreCmpPartialEqStr.eq method (toStr "initialize")
+file translation/Rmcp/Funs.lean sha256 eef79934a10cb94ba4c4d2ce2a5ca98ede7211b8da67a311c593d233137c3900
+line 5345 initialize   let b ← Str.Insts.CoreCmpPartialEqStr.eq method (toStr "initialize")

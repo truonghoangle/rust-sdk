@@ -38,9 +38,12 @@
 #     [package.metadata.charon] are checked on the translation instead, below),
 #   - a translated item (translation.json) that matches an exclude pattern, a function, type or
 #     global that matches an opaque pattern but has a body, a local (rmcp) item without a body
-#     that matches no opaque pattern, or a start_from pattern that matches no translated item
-#     (widening options cannot be set: the metadata keys are restricted as above, the command
-#     line is fixed here and CHARON_* variables are refused),
+#     that matches no opaque pattern, a start_from pattern that matches no translated item, or
+#     a `Type::method` start_from pattern naming other than exactly one local function (or the
+#     functions of its TYPE_MULTI entry) or also matching an item by its own path (the logged
+#     count, 73 or 65 in the phase2 set, is a consistency check; these per-pattern checks are what
+#     enforce it) (widening options cannot be set: the metadata keys are restricted as above, the
+#     command line is fixed here and CHARON_* variables are refused),
 #   - a nonzero Aeneas exit,
 #   - a target missing from Funs.lean, a Phase 2 `_` glob matching other than exactly one
 #     definition, or any `sorry` in the generated files.
@@ -236,6 +239,82 @@ TARGETS=(
   transport.common.mcp_headers.is_tchar                     # G02
   transport.common.mcp_headers.encode_header_value          # G03
   transport.common.mcp_headers.decode_header_value          # G04
+  # elicitation_schema.rs builders (X01-X75); X29, X32, X33, X35-X38, X40, X74, X75 need patch 08.
+  model.elicitation_schema.StringSchema.new  # X01
+  model.elicitation_schema.StringSchema.email  # X02
+  model.elicitation_schema.StringSchema.uri  # X03
+  model.elicitation_schema.StringSchema.date  # X04
+  model.elicitation_schema.StringSchema.date_time  # X05
+  model.elicitation_schema.StringSchema.impl.title  # X06
+  model.elicitation_schema.StringSchema.impl.description  # X07
+  model.elicitation_schema.StringSchema.with_length  # X08
+  model.elicitation_schema.StringSchema.length  # X09
+  model.elicitation_schema.StringSchema.impl.min_length  # X10
+  model.elicitation_schema.StringSchema.impl.max_length  # X11
+  model.elicitation_schema.StringSchema.impl.format  # X12
+  model.elicitation_schema.StringSchema.with_default  # X13
+  model.elicitation_schema.IntegerSchema.new  # X14
+  model.elicitation_schema.IntegerSchema.with_range  # X15
+  model.elicitation_schema.IntegerSchema.range  # X16
+  model.elicitation_schema.IntegerSchema.impl.minimum  # X17
+  model.elicitation_schema.IntegerSchema.impl.maximum  # X18
+  model.elicitation_schema.IntegerSchema.impl.title  # X19
+  model.elicitation_schema.IntegerSchema.impl.description  # X20
+  model.elicitation_schema.IntegerSchema.with_default  # X21
+  model.elicitation_schema.BooleanSchema.new  # X22
+  model.elicitation_schema.BooleanSchema.impl.title  # X23
+  model.elicitation_schema.BooleanSchema.impl.description  # X24
+  model.elicitation_schema.BooleanSchema.with_default  # X25
+  model.elicitation_schema.EnumSchemaBuilder.impl.title  # X26
+  model.elicitation_schema.EnumSchemaBuilder.impl.description  # X27
+  model.elicitation_schema.EnumSchemaBuilder.untitled  # X28
+  model.elicitation_schema.EnumSchemaBuilder.impl.enum_titles  # X29 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.new  # X30
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.multiselect  # X31
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.with_default  # X32 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.build  # X33 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.single_select  # X34
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default  # X35 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.min_items  # X36 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.max_items  # X37 (patch 08)
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.build  # X38 (patch 08)
+  model.elicitation_schema.EnumSchema.builder  # X39
+  model.elicitation_schema.ElicitationSchema.new  # X40 (patch 08)
+  model.elicitation_schema.ElicitationSchema.with_required  # X41
+  model.elicitation_schema.ElicitationSchema.with_title  # X42
+  model.elicitation_schema.ElicitationSchema.with_description  # X43
+  model.elicitation_schema.ElicitationSchema.with_schema  # X44
+  model.elicitation_schema.ElicitationSchema.builder  # X45
+  model.elicitation_schema.ElicitationSchemaBuilder.new  # X46
+  model.elicitation_schema.ElicitationSchemaBuilder.property  # X47
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property  # X48
+  model.elicitation_schema.ElicitationSchemaBuilder.string_property  # X49
+  model.elicitation_schema.ElicitationSchemaBuilder.required_string_property  # X50
+  model.elicitation_schema.ElicitationSchemaBuilder.integer_property  # X51
+  model.elicitation_schema.ElicitationSchemaBuilder.required_integer_property  # X52
+  model.elicitation_schema.ElicitationSchemaBuilder.bool_property  # X53
+  model.elicitation_schema.ElicitationSchemaBuilder.required_bool_property  # X54
+  model.elicitation_schema.ElicitationSchemaBuilder.required_string  # X55
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_string  # X56
+  model.elicitation_schema.ElicitationSchemaBuilder.required_email  # X57
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_email  # X58
+  model.elicitation_schema.ElicitationSchemaBuilder.required_string_with  # X59
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_string_with  # X60
+  model.elicitation_schema.ElicitationSchemaBuilder.required_integer  # X61
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_integer  # X62
+  model.elicitation_schema.ElicitationSchemaBuilder.required_integer_with  # X63
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_integer_with  # X64
+  model.elicitation_schema.ElicitationSchemaBuilder.required_bool  # X65
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_bool  # X66
+  model.elicitation_schema.ElicitationSchemaBuilder.required_bool_with  # X67
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_bool_with  # X68
+  model.elicitation_schema.ElicitationSchemaBuilder.required_enum_schema  # X69
+  model.elicitation_schema.ElicitationSchemaBuilder.optional_enum_schema  # X70
+  model.elicitation_schema.ElicitationSchemaBuilder.mark_required  # X71
+  model.elicitation_schema.ElicitationSchemaBuilder.impl.title  # X72
+  model.elicitation_schema.ElicitationSchemaBuilder.impl.description  # X73
+  model.elicitation_schema.ElicitationSchemaBuilder.build  # X74 (patch 08)
+  model.elicitation_schema.ElicitationSchemaBuilder.build_unchecked  # X75 (patch 08)
 )
 
 
@@ -278,12 +357,24 @@ PATCH06_TARGETS=" transport.auth.AuthorizationManager.is_http_url
 PATCH07_TARGETS=" transport.common.mcp_headers.requires_base64
   transport.common.mcp_headers.is_tchar transport.common.mcp_headers.encode_header_value
   transport.common.mcp_headers.decode_header_value "
+# Likewise the elicitation_schema.rs targets of translation patch 08 (X29, X32, X33, X35-X38,
+# X40, X74, X75; the other 65 of X01-X75 are ORIGINAL).
+PATCH08_TARGETS=" model.elicitation_schema.EnumSchemaBuilder.impl.enum_titles
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.with_default
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.build
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.min_items
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.max_items
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.build
+  model.elicitation_schema.ElicitationSchema.new
+  model.elicitation_schema.ElicitationSchemaBuilder.build
+  model.elicitation_schema.ElicitationSchemaBuilder.build_unchecked "
 case "${RMCP_TARGET_SET:-all}" in
   all) ;;
   phase2)
     phase2=()
     for t in "${TARGETS[@]}"; do
-      [[ "$t" == model.request_state* || "$(printf '%s' "$PATCH04_TARGETS$PATCH05_TARGETS$PATCH06_TARGETS$PATCH07_TARGETS" | tr '\n' ' ')" == *" $t "* ]] \
+      [[ "$t" == model.request_state* || "$(printf '%s' "$PATCH04_TARGETS$PATCH05_TARGETS$PATCH06_TARGETS$PATCH07_TARGETS$PATCH08_TARGETS" | tr '\n' ' ')" == *" $t "* ]] \
         || phase2+=("$t")
     done
     TARGETS=("${phase2[@]}")
@@ -315,9 +406,9 @@ check_output() {
   # target, i.e. PATCH04_TARGETS (here) and `patch04` (scripts/check-original-linkage.sh) disagree
   # with the call graph, and the ORIGINAL claim would silently skip checking it.
   if [[ "${RMCP_TARGET_SET:-all}" == phase2 ]]; then
-    for t in $PATCH04_TARGETS $PATCH05_TARGETS $PATCH06_TARGETS $PATCH07_TARGETS; do
+    for t in $PATCH04_TARGETS $PATCH05_TARGETS $PATCH06_TARGETS $PATCH07_TARGETS $PATCH08_TARGETS; do
       pat="^(noncomputable )?(private )?def ${t//./\\.}([[:space:]]|$)"
-      ! grep -Eq "$pat" <<<"$defs" || die "patch-04/05/06/07 target $t is translated from the unmodified source; update PATCH04_TARGETS/PATCH05_TARGETS/PATCH06_TARGETS/PATCH07_TARGETS and check-original-linkage.sh"
+      ! grep -Eq "$pat" <<<"$defs" || die "patch-04/05/06/07/08 target $t is translated from the unmodified source; update PATCH04_TARGETS/PATCH05_TARGETS/PATCH06_TARGETS/PATCH07_TARGETS/PATCH08_TARGETS and check-original-linkage.sh"
     done
   fi
   # Each `_` glob in [package.metadata.charon].start_from matches exactly one Rust item (plan
@@ -758,7 +849,10 @@ set -e
 #  - opaque: every function matching an opaque pattern has no body (is_opaque), and every local
 #    (rmcp) function without a body matches an opaque pattern (no body is silently dropped); the
 #    same for types and globals, whose opacity is their file (an *External_Template.lean);
-#  - start_from: every pattern matches at least one translated item.
+#  - start_from: every pattern matches at least one translated item; a `Type::method` pattern
+#    (one that reaches items only through the type path of an inherent impl) names exactly one
+#    local function, or exactly the functions listed in TYPE_MULTI (review finding TR9); every
+#    `module::Type::method` pattern of start_from is such a pattern and no other is (TR16).
 python3 -I - "$OUT/translation.json" "$meta" <<'PY' || die "Charon settings check on the translation failed"
 import json, sys
 meta = json.loads(sys.argv[2])
@@ -805,15 +899,78 @@ def canon(name):
             ty = elems(x[1:-1].split("<", 1)[0])
             return "::".join(ty[:-1] + e[i:])
     return name
+def typepath(name):
+    # `module::Type::method` form of an inherent method `module::{module::Type<..>}::method` of a
+    # local type (Charon resolves such a start_from pattern through the type; X01-X75).
+    e = elems(name)
+    for i, x in enumerate(e):
+        if x.startswith("{rmcp::"):
+            return "::".join(elems(x[1:-1].split("<", 1)[0]) + e[i + 1:])
+    return name
 for pat in meta["start_from"]:
-    if not any(matches(pat, d["rust_name"]) or matches(pat, canon(d["rust_name"])) for _, d in items):
+    if not any(matches(pat, d["rust_name"]) or matches(pat, canon(d["rust_name"]))
+               or matches(pat, typepath(d["rust_name"])) for _, d in items):
         errs.append(f"start_from {pat!r} matches no translated item")
+# `Type::method` start points (review finding TR9): a pattern that reaches items only through
+# typepath must name exactly the expected inherent methods: as many local functions whose typepath
+# is the pattern itself as listed in TYPE_MULTI (the methods of the same name of several
+# instantiations of a generic type, each listed), else exactly one. Another count means the
+# pattern also caught another (e.g. a new upstream) method, or none.
+es = "rmcp::model::elicitation_schema::"
+TYPE_MULTI = {
+    es + "EnumSchemaBuilder::with_default": [
+        es + "{" + es + "EnumSchemaBuilder<" + es + "SingleSelect>}::with_default",
+        es + "{" + es + "EnumSchemaBuilder<" + es + "MultiSelect>}::with_default"],
+    es + "EnumSchemaBuilder::build": [
+        es + "{" + es + "EnumSchemaBuilder<" + es + "SingleSelect>}::build",
+        es + "{" + es + "EnumSchemaBuilder<" + es + "MultiSelect>}::build"],
+}
+# The `Type::method` patterns are derived from the start_from list itself (review finding TR16):
+# no `_` element and a path element before the last that starts with an upper-case ASCII letter
+# (a Rust type; modules are lower case). Each must reach items only through typepath: a pattern
+# that also matches an item name directly (e.g. a new upstream item of that path) is an error, not
+# silently skipped, and so is a pattern that reaches items through typepath only without having
+# this form. The count is logged (73 for the full set, 65 for the phase2 set).
+def is_type_method(pat):
+    e = elems(pat)
+    return "_" not in e and len(e) >= 3 and e[-2][:1].isascii() and e[-2][:1].isupper()
+expected_type = [p for p in meta["start_from"] if is_type_method(p)]
+local_fns = sorted({d["rust_name"] for d in tr.get("functions", []) if d.get("is_local")})
+n_type = 0
+for pat in meta["start_from"]:
+    direct = any(matches(pat, d["rust_name"]) or matches(pat, canon(d["rust_name"])) for _, d in items)
+    if direct and is_type_method(pat):
+        errs.append(f"start_from {pat!r} (Type::method) also matches a translated item by its own path")
+        continue
+    if direct:
+        continue
+    if not any(matches(pat, typepath(d["rust_name"])) for _, d in items):
+        continue   # reported above
+    if not is_type_method(pat):
+        errs.append(f"start_from {pat!r} reaches items only through the type of an inherent impl "
+                    "but is not of the `module::Type::method` form")
+        continue
+    n_type += 1
+    hits = [n for n in local_fns if elems(typepath(n)) == elems(pat) and n != pat]
+    if pat in TYPE_MULTI:
+        if hits != sorted(TYPE_MULTI[pat]):
+            errs.append(f"start_from {pat!r} (Type::method) matches {hits}, expected {sorted(TYPE_MULTI[pat])}")
+    elif len(hits) != 1:
+        errs.append(f"start_from {pat!r} (Type::method) matches {len(hits)} local functions, expected exactly one: {hits}")
+for pat in TYPE_MULTI:
+    if pat in meta["start_from"] and not any(matches(pat, typepath(d["rust_name"])) for _, d in items):
+        errs.append(f"start_from {pat!r} is listed in TYPE_MULTI but matches no translated item")
+if n_type != len(expected_type):
+    errs.append(f"{n_type} start_from patterns reach their methods through the type path, expected "
+                f"{len(expected_type)} (the `module::Type::method` patterns of start_from)")
 for e in errs:
     print(f"[aeneas-translate] {e}", file=sys.stderr)
 if errs:
     sys.exit(1)
 print(f"[aeneas-translate] charon settings applied: {len(items)} translated items; none excluded, "
-      f"opaque items bodiless, {len(meta['start_from'])} start_from patterns matched")
+      f"opaque items bodiless, {len(meta['start_from'])} start_from patterns matched; {n_type} of "
+      f"{len(expected_type)} Type::method patterns of start_from name their expected methods "
+      "(exactly one each, or the TYPE_MULTI list)")
 PY
 
 # 6. Output checks, then install. rsync --delete replaces DEST; as a second guard (besides the

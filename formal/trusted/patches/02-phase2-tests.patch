@@ -4,12 +4,14 @@ public request_state.rs API R09-R12 and R15 (human decision 2026-11-25, spec-cyc
 findings sR2-a-2, sR2-b-4 and sR3-a-3), and boundary cases of the auth.rs paths that
 06-auth-metadata.patch rewrites (human decision AD5, 2026-11-26, extended 2026-11-27), and
 boundary cases of the mcp_headers.rs header-value encoding that 07-mcp-headers.patch rewrites
-(human decision GD3, 2026-11-27)
+(human decision GD3, 2026-11-27), and boundary cases of the elicitation_schema.rs builders that
+08-elicitation-schema.patch rewrites (human decision XD1, 2026-11-28)
 
 Applies to: the copy of upstream origin/main 7caec762799bece6fba38e4298b8ca7db8bac12c after
 01-request-state-wire.patch (scripts/apply-patches.sh applies formal/trusted/patches/*.patch in
 file-name order, patch -p1 -F 0, only to the copy in .llbc/work/; the real source is never
-patched). Files: crates/rmcp/src/model.rs, crates/rmcp/src/model/request_state.rs,
+patched). Files: crates/rmcp/src/model.rs, crates/rmcp/src/model/elicitation_schema.rs,
+crates/rmcp/src/model/request_state.rs,
 crates/rmcp/src/model/task.rs, crates/rmcp/src/transport/async_rw.rs,
 crates/rmcp/src/transport/auth.rs, crates/rmcp/src/transport/common/client_side_sse.rs,
 crates/rmcp/src/transport/common/mcp_headers.rs,
@@ -22,11 +24,14 @@ patch-01 copy) lie before the request_state.rs hunk of this patch, so they apply
 recorded lines. Likewise every hunk of 07-mcp-headers.patch lies before the mcp_headers.rs hunk
 of this patch (which starts at line 1138), so patch 07, which applies after this patch, applies
 at its recorded lines. mcp_headers.rs is blob 4ee60aa after this patch (patches 01-06) and blob
-a8f6185 after patch 07 (patches 01-07).
+a8f6185 after patch 07 (patches 01-07). Every hunk of 08-elicitation-schema.patch lies before
+the elicitation_schema.rs hunk of this patch (which starts at line 2535 of the upstream blob
+929b446), so patch 08 applies at its recorded lines; elicitation_schema.rs is blob ca78a8d after
+this patch (patches 01-07) and 3c55487 after patch 08.
 
 Change: #[cfg(test)] code only. Every added line lies inside a #[cfg(test)] module: at the end
-of the existing test module of model.rs, model/request_state.rs (mod tests, after patch 01's
-tests), model/task.rs, async_rw.rs (mod test), auth.rs, client_side_sse.rs and mcp_headers.rs
+of the existing test module of model.rs, model/elicitation_schema.rs (mod tests),
+model/request_state.rs (mod tests, after patch 01's tests), model/task.rs, async_rw.rs (mod test), auth.rs, client_side_sse.rs and mcp_headers.rs
 (mod tests), and in a new
 #[cfg(test)] mod phase2_boundary_tests at the end of tower.rs (its added lines are one blank
 separator line, the #[cfg(test)] and mod lines, and the module body, comments included).
@@ -206,6 +211,43 @@ the else branch of encode_header_value (reached only when requires_base64 is fal
 value has no leading or trailing space or tab and no control or non-ASCII char, and trim, which
 removes Unicode White_Space chars, removes nothing).
 
+XD tests (7, elicitation_schema.rs, at the end of mod tests, which is not feature-gated): named
+x08_<subject>; they back 08-elicitation-schema.patch (human decision XD1, 2026-11-28, following
+the AD5 and GD3 precedent) by pinning the paths it rewrites that no upstream test pins. Their
+expected values are computed from the upstream source at 7caec76 (EnumSchemaBuilder::enum_titles
+and its format! text, with_default of MultiSelect, build of SingleSelect and MultiSelect,
+ElicitationSchema::new, ElicitationSchemaBuilder::build and build_unchecked; BTreeMap<String, _>
+iterates in the byte order of the names), not from the Lean model. They call only public
+functions whose name and signature patch 08 keeps: x08_enum_titles_count_mismatch_message (X29,
+E1 and prim::titles_mismatch_message: 2 vs 1, 0 vs 3, multi-select 2 vs 0, 1000 vs 10, equal
+counts accepted), x08_titled_options_pair_titles_with_values_in_order (X33/X38, E8: three, one and
+zero title-value pairs, single and multi select, in order), x08_multi_select_default_membership
+(X35, E3: empty, reordered and repeated defaults accepted; a non-member first, last, differing in
+case or by a trailing space rejected with the exact message, also when max_items would fail
+too), x08_property_order_is_the_byte_order_of_the_names (X40, X74, E6/E7 and
+prim::sorted_keys: seven names inserted out of order, among them "", "B", "a", "aa", "~" and
+"é", come out in byte order in property_order and in the map; a second insert of a name replaces
+its value; ElicitationSchema::new of the same map and of the empty map, and the empty builder),
+x08_build_required_names_must_be_property_names (X74, E7: no, reordered and repeated required
+names accepted, a missing name first or last, a name differing in case and the empty name
+rejected), x08_build_unchecked_panics_with_the_error (X75: the exact panic message, with the
+Debug-quoted error) and x08_build_unchecked_returns_the_built_schema (X75). They pass on the copy
+with patches 01-07 (upstream elicitation_schema.rs) and with patches 01-08; recorded run
+(2026-11-28), the cargo test command of the GD3 paragraph: 872 passed, 0 failed on both copies.
+Mutation check (2026-11-28, scratch copy with patches 01-08, the same command filtered to
+elicitation_schema, 40 tests; each mutant alone): swapped counts in prim::titles_mismatch_message
+fail x08_enum_titles_count_mismatch_message alone; `any` for `all` in with_default fails
+x08_multi_select_default_membership and two upstream tests; `|_| true` for names.contains in
+build fails x08_build_required_names_must_be_property_names and
+x08_build_unchecked_panics_with_the_error; `any` for `all` in build fails
+x08_build_required_names_must_be_property_names alone; reversed values in const_titles fail
+x08_titled_options_pair_titles_with_values_in_order and three upstream tests; prim::sorted_keys
+reversed, and property_order of ElicitationSchema::new dropped for fewer than two keys, each fail
+x08_property_order_is_the_byte_order_of_the_names alone. Two mutants survive and are
+equivalent: dropping `!self.required.is_empty() &&` in build (`all` of no element is true) and
+`None => continue` for `None => break` in const_titles (once the values are exhausted every
+later next is None).
+
 Why (plan Section 19, "Tests (human decision H3)"; Section 21, H3; human decision
 2026-11-25): new Rust tests of these functions must live in SDK *.rs files, which stay
 byte-identical to upstream. The S34 upstream-test map (formal/trusted/evidence/README.md) found
@@ -226,6 +268,10 @@ Url::parse(value) replaced by base_url.join(value), and A10's scheme clause drop
 Patch 07 likewise replaces mcp_headers.rs expressions by equivalent ones (M1-M4); decision GD3
 asks for the same kind of Rust tests for its paths (the quote of is_tchar, the duplicated None
 arm of decode_header_value, the DEL and sentinel edges of requires_base64).
+Patch 08 likewise replaces elicitation_schema.rs expressions by equivalent ones (prim, E1-E8);
+decision XD1 adopts it with the same kind of Rust tests for its paths (the format! text, the
+key order of property_order, the required-name and default-membership checks, the title-value
+pairing).
 A test-only patch is a process exception (VERIFICATION.md Section 4 defines translation patches
 as behaviour-preserving edits that make an item translate); plan Section 21 (H3) asks for it to
 be recorded in formal/docs/STATUS.md, "Documents", as a further deviation from VERIFICATION.md.
@@ -241,7 +287,12 @@ GD3 tests are added at the end of mcp_headers.rs, inside mod tests (after patch 
 prim, which patch 07 inserts before mod tests); with all five of them (including the cases
 added on 2026-11-27) the check was re-run on 2026-11-27 (scripts/aeneas-translate.sh on a
 scratch copy of the working tree with patches 01-07, exit 0): Funs.lean, Types.lean, the two
-External templates and translation.json are byte-identical to formal/translation/.
+External templates and translation.json are byte-identical to formal/translation/. The XD
+tests are added at the end of elicitation_schema.rs, inside mod tests (after patch 08's new
+module prim and function const_titles, which patch 08 inserts before mod tests); with all seven
+of them the check was re-run on 2026-11-28 (scripts/aeneas-translate.sh, twice, on a scratch
+copy of the working tree with patches 01-08, exit 0): Funs.lean, Types.lean, the two External
+templates and translation.json are byte-identical to the translation without them.
 
 Evidence in CI: patched-tests.yml runs cargo test --locked --lib on the copy with all patches
 (translated features plus macros, overflow checks and debug assertions on), which runs these
@@ -464,6 +515,248 @@ index 315f83c..f491161 100644
 +        assert_eq!(c.len(), 2);
 +        assert_eq!(c.first(), Some(&10));
 +        assert_eq!(c.into_vec(), vec![10, 20]);
++    }
+ }
+diff --git a/crates/rmcp/src/model/elicitation_schema.rs b/crates/rmcp/src/model/elicitation_schema.rs
+index 929b446..ca78a8d 100644
+--- a/crates/rmcp/src/model/elicitation_schema.rs
++++ b/crates/rmcp/src/model/elicitation_schema.rs
+@@ -2535,4 +2535,237 @@ mod tests {
+             Ok(())
+         }
+     }
++
++    // XD tests (human decision XD1, 2026-11-28): boundary cases of the paths that
++    // 08-elicitation-schema.patch rewrites and no upstream test pins. Expected values are
++    // computed from the upstream source at 7caec76 (EnumSchemaBuilder::enum_titles,
++    // with_default, build; ElicitationSchema::new; ElicitationSchemaBuilder::build and
++    // build_unchecked; String's Ord is the byte order), not from the Lean model.
++
++    fn x08_strings(xs: &[&str]) -> Vec<String> {
++        xs.iter().map(|x| x.to_string()).collect()
++    }
++
++    #[test]
++    fn x08_enum_titles_count_mismatch_message() {
++        let single = EnumSchema::builder(x08_strings(&["a", "b"])).enum_titles(x08_strings(&["A"]));
++        assert_eq!(
++            single.err().as_deref(),
++            Some("Provided number of titles do not match number of values: expected 2, but got 1")
++        );
++        let empty = EnumSchema::builder(vec![]).enum_titles(x08_strings(&["A", "B", "C"]));
++        assert_eq!(
++            empty.err().as_deref(),
++            Some("Provided number of titles do not match number of values: expected 0, but got 3")
++        );
++        let multi = EnumSchema::builder(x08_strings(&["a", "b"]))
++            .multiselect()
++            .enum_titles(vec![]);
++        assert_eq!(
++            multi.err().as_deref(),
++            Some("Provided number of titles do not match number of values: expected 2, but got 0")
++        );
++        let large =
++            EnumSchema::builder(vec!["v".to_string(); 1000]).enum_titles(vec!["t".to_string(); 10]);
++        assert_eq!(
++            large.err().as_deref(),
++            Some(
++                "Provided number of titles do not match number of values: expected 1000, but got 10"
++            )
++        );
++        assert!(EnumSchema::builder(vec![]).enum_titles(vec![]).is_ok());
++    }
++
++    #[test]
++    fn x08_titled_options_pair_titles_with_values_in_order() -> anyhow::Result<()> {
++        let values = x08_strings(&["v1", "v2", "v3"]);
++        let titles = x08_strings(&["t1", "t2", "t3"]);
++        let pairs = json!([
++            {"const": "v1", "title": "t1"},
++            {"const": "v2", "title": "t2"},
++            {"const": "v3", "title": "t3"}
++        ]);
++        let single = EnumSchema::builder(values.clone())
++            .enum_titles(titles.clone())
++            .map_err(|e| anyhow!("{e}"))?
++            .build();
++        assert_eq!(serde_json::to_value(&single)?["oneOf"], pairs);
++        let multi = EnumSchema::builder(values)
++            .multiselect()
++            .enum_titles(titles)
++            .map_err(|e| anyhow!("{e}"))?
++            .build();
++        assert_eq!(serde_json::to_value(&multi)?["items"]["anyOf"], pairs);
++        let one = EnumSchema::builder(x08_strings(&["only"]))
++            .enum_titles(x08_strings(&["Only"]))
++            .map_err(|e| anyhow!("{e}"))?
++            .build();
++        assert_eq!(
++            serde_json::to_value(&one)?["oneOf"],
++            json!([{"const": "only", "title": "Only"}])
++        );
++        let none = EnumSchema::builder(vec![])
++            .enum_titles(vec![])
++            .map_err(|e| anyhow!("{e}"))?
++            .build();
++        assert_eq!(serde_json::to_value(&none)?["oneOf"], json!([]));
++        Ok(())
++    }
++
++    #[test]
++    fn x08_multi_select_default_membership() {
++        let builder = || EnumSchema::builder(x08_strings(&["a", "b", "c"])).multiselect();
++        let not_member = Some("One of the provided default values is not in enum values");
++        assert!(builder().with_default(vec![]).is_ok());
++        assert!(builder().with_default(x08_strings(&["c", "a"])).is_ok());
++        assert!(
++            builder()
++                .with_default(x08_strings(&["a", "a", "a", "a"]))
++                .is_ok()
++        );
++        assert_eq!(
++            builder()
++                .with_default(x08_strings(&["x", "a"]))
++                .err()
++                .as_deref(),
++            not_member
++        );
++        assert_eq!(
++            builder()
++                .with_default(x08_strings(&["a", "b", "x"]))
++                .err()
++                .as_deref(),
++            not_member
++        );
++        assert_eq!(
++            builder().with_default(x08_strings(&["A"])).err().as_deref(),
++            not_member
++        );
++        assert_eq!(
++            builder()
++                .with_default(x08_strings(&["a "]))
++                .err()
++                .as_deref(),
++            not_member
++        );
++        // Membership is checked before the bounds: a non-member default fails with the
++        // membership error even when it also violates max_items.
++        assert_eq!(
++            builder()
++                .max_items(1)
++                .and_then(|b| b.with_default(x08_strings(&["a", "x"])))
++                .err()
++                .as_deref(),
++            not_member
++        );
++        assert_eq!(
++            EnumSchema::builder(vec![])
++                .multiselect()
++                .with_default(x08_strings(&["a"]))
++                .err()
++                .as_deref(),
++            not_member
++        );
++        assert!(
++            EnumSchema::builder(vec![])
++                .multiselect()
++                .with_default(vec![])
++                .is_ok()
++        );
++    }
++
++    #[test]
++    fn x08_property_order_is_the_byte_order_of_the_names() {
++        let schema = ElicitationSchema::builder()
++            .optional_string("b")
++            .optional_string("a")
++            .optional_string("B")
++            .optional_string("\u{e9}")
++            .optional_string("aa")
++            .optional_string("")
++            .optional_string("~")
++            .required_integer("a", 0, 1)
++            .build()
++            .unwrap();
++        let order = x08_strings(&["", "B", "a", "aa", "b", "~", "\u{e9}"]);
++        assert_eq!(schema.property_order.as_ref(), Some(&order));
++        assert_eq!(schema.properties.keys().cloned().collect::<Vec<_>>(), order);
++        // The second insert of "a" replaced its value and kept one entry.
++        assert!(matches!(
++            schema.properties.get("a"),
++            Some(PrimitiveSchemaDefinition::Integer(_))
++        ));
++        assert_eq!(schema.required, Some(x08_strings(&["a"])));
++        let rebuilt = ElicitationSchema::new(schema.properties.clone());
++        assert_eq!(rebuilt.property_order, Some(order));
++        assert_eq!(rebuilt.required, None);
++        let empty = ElicitationSchema::new(BTreeMap::new());
++        assert_eq!(empty.property_order, Some(vec![]));
++        let built = ElicitationSchema::builder().build().unwrap();
++        assert_eq!(built.property_order, Some(vec![]));
++        assert_eq!(built.required, None);
++    }
++
++    #[test]
++    fn x08_build_required_names_must_be_property_names() {
++        let missing = Err("Required field does not exist in properties");
++        let base = || {
++            ElicitationSchema::builder()
++                .optional_string("a")
++                .optional_string("b")
++        };
++        let required = |b: ElicitationSchemaBuilder| b.build().map(|s| s.required);
++        assert_eq!(required(base()), Ok(None));
++        assert_eq!(
++            required(base().mark_required("b").mark_required("a")),
++            Ok(Some(x08_strings(&["b", "a"])))
++        );
++        assert_eq!(
++            required(base().mark_required("a").mark_required("a")),
++            Ok(Some(x08_strings(&["a", "a"])))
++        );
++        assert_eq!(
++            required(base().mark_required("x").mark_required("a")),
++            missing
++        );
++        assert_eq!(
++            required(base().mark_required("a").mark_required("x")),
++            missing
++        );
++        assert_eq!(required(base().mark_required("A")), missing);
++        assert_eq!(required(base().mark_required("")), missing);
++        assert_eq!(
++            required(ElicitationSchema::builder().mark_required("a")),
++            missing
++        );
++        assert_eq!(
++            required(
++                ElicitationSchema::builder()
++                    .optional_string("")
++                    .mark_required("")
++            ),
++            Ok(Some(x08_strings(&[""])))
++        );
++    }
++
++    #[test]
++    #[should_panic(
++        expected = "Invalid elicitation schema: \"Required field does not exist in properties\""
++    )]
++    fn x08_build_unchecked_panics_with_the_error() {
++        let _ = ElicitationSchema::builder()
++            .optional_string("a")
++            .mark_required("b")
++            .build_unchecked();
++    }
++
++    #[test]
++    fn x08_build_unchecked_returns_the_built_schema() {
++        let builder = || {
++            ElicitationSchema::builder()
++                .optional_string("b")
++                .required_string("a")
++        };
++        assert_eq!(builder().build_unchecked(), builder().build().unwrap());
 +    }
  }
 diff --git a/crates/rmcp/src/model/request_state.rs b/crates/rmcp/src/model/request_state.rs

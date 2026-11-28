@@ -510,11 +510,21 @@ Rust documentation. Used by: the proofs of all statements above.
 >   quote check of `is_tchar` is written `c == char::from(b'\'')` because Aeneas prints `'\''`
 >   as invalid Lean. Not proved equivalent to the unpatched code: backed by the patch-02 boundary
 >   tests (decision GD3). Every G target is `patch-07`.
+> - **Translation patch 08** (the elicitation schema builders X01–X75 of
+>   `model/elicitation_schema.rs`; no statement yet): a private opaque module `prim` (the `format!`
+>   of the titles-mismatch message, the map's sorted key list), `.to_owned()` error literals,
+>   `iter().all` rewrites of two loops with an early return, and a translated helper for the enum
+>   titles; it keeps every returned value.
+>   Backed by the patch-02 boundary tests (decision XD8). X29, X32, X33, X35–X38, X40, X74, X75 are
+>   `patch-08`, the other 65 targets `ORIGINAL`.
 > - **The models in [`formal/trusted/`](../trusted/)** of the external functions (standard library,
 >   `core::net`, integer parsing, HMAC-SHA256, Base64url, standard padded Base64 (an alphabet
 >   renaming of the Base64url model, patch 07), `zeroize`, the `mcp_headers.rs` `prim` wrappers, and
 >   for `skill.rs` the `prim` wrappers, `HashSet` and `serde_json::Map`, the latter as the
->   `BTreeMap` it is): definitions, structures and 24 `opaque` constants (patch 04 adds SHA-256,
+>   `BTreeMap` it is; for `elicitation_schema.rs` the `prim` wrappers, `BTreeMap` with an
+>   `Ord`-driven `insert`, the byte order of `String` and a total `<str as Debug>::fmt`; the float
+>   types `F64`, `F32` as opaque carriers that no statement inspects): definitions, structures and
+>   26 `opaque` constants (patch 04 adds SHA-256,
 >   NFKC and the Unicode General_Category, whose laws enter statements only as premises; patches 05
 >   and 06 the abstract `url::Url` and its accessors, the DNS lookup, the proxy settings and the
 >   issuer-URL rewrite; list in [`../README.md`](../README.md), "Trusted base"), no trusted axiom

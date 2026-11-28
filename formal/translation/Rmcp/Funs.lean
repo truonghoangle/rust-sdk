@@ -33,6 +33,14 @@ def Char.Insts.CoreCmpPartialEqChar : core.cmp.PartialEq Char Char := {
   eq := Char.Insts.CoreCmpPartialEqChar.eq
 }
 
+/-- Trait implementation: [core::fmt::{impl core::fmt::Debug for str}]
+    Source: '/rustc/library/core/src/fmt/mod.rs', lines 2916:0-2916:18
+    Name pattern: [core::fmt::Debug<str>] -/
+@[reducible, rust_trait_impl "core::fmt::Debug<str>"]
+def Str.Insts.CoreFmtDebug : core.fmt.Debug Str := {
+  fmt := Str.Insts.CoreFmtDebug.fmt
+}
+
 /-- Trait implementation: [core::hash::impls::{impl core::hash::Hash for str}]
     Source: '/rustc/library/core/src/hash/mod.rs', lines 863:4-863:21
     Name pattern: [core::hash::Hash<str>] -/
@@ -194,6 +202,17 @@ def alloc.string.String.Insts.CoreCmpPartialEqString : core.cmp.PartialEq
   eq := alloc.string.String.Insts.CoreCmpPartialEqString.eq
 }
 
+/-- Trait implementation: [alloc::string::{impl core::cmp::PartialOrd<alloc::string::String> for alloc::string::String}]
+    Source: '/rustc/library/alloc/src/string.rs', lines 350:20-350:30
+    Name pattern: [core::cmp::PartialOrd<alloc::string::String, alloc::string::String>] -/
+@[reducible, rust_trait_impl
+  "core::cmp::PartialOrd<alloc::string::String, alloc::string::String>"]
+def alloc.string.String.Insts.CoreCmpPartialOrdString : core.cmp.PartialOrd
+  String String := {
+  partialEqInst := alloc.string.String.Insts.CoreCmpPartialEqString
+  partial_cmp := alloc.string.String.Insts.CoreCmpPartialOrdString.partial_cmp
+}
+
 /-- Trait implementation: [alloc::string::{impl core::cmp::Eq for alloc::string::String}]
     Source: '/rustc/library/alloc/src/string.rs', lines 350:32-350:34
     Name pattern: [core::cmp::Eq<alloc::string::String>] -/
@@ -202,6 +221,17 @@ def alloc.string.String.Insts.CoreCmpEq : core.cmp.Eq String := {
   partialEqInst := alloc.string.String.Insts.CoreCmpPartialEqString
   assert_fields_are_eq :=
     alloc.string.String.Insts.CoreCmpEq.assert_fields_are_eq
+}
+
+/-- Trait implementation: [alloc::string::{impl core::cmp::Ord for alloc::string::String}]
+    Source: '/rustc/library/alloc/src/string.rs', lines 350:36-350:39
+    Name pattern: [core::cmp::Ord<alloc::string::String>] -/
+@[reducible, rust_trait_impl "core::cmp::Ord<alloc::string::String>"]
+impl_def alloc.string.String.Insts.CoreCmpOrd : core.cmp.Ord String := {
+  eqInst := alloc.string.String.Insts.CoreCmpEq
+  partialOrdInst := alloc.string.String.Insts.CoreCmpPartialOrdString
+  cmp := alloc.string.String.Insts.CoreCmpOrd.cmp
+  min := core.cmp.Ord.min.trait_default alloc.string.String.Insts.CoreCmpOrd
 }
 
 /-- Trait implementation: [alloc::string::{impl core::clone::Clone for alloc::string::String}]
@@ -309,6 +339,1531 @@ def zeroize.Zeroizing.Insts.CoreCloneClone {Z : Type _} (ZeroizeInst :
   clone := zeroize.Zeroizing.Insts.CoreCloneClone.clone ZeroizeInst
     corecloneCloneInst
 }
+
+/-- [rmcp::model::elicitation_schema::{impl core::default::Default for rmcp::model::elicitation_schema::StringSchema}::default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 127:4-137:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+  : Result model.elicitation_schema.StringSchema := do
+  ok
+    {
+      type_ := (),
+      title := none,
+      description := none,
+      min_length := none,
+      max_length := none,
+      format := none,
+      default := none
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 142:4-144:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.new
+  : Result model.elicitation_schema.StringSchema := do
+  model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::email]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 147:4-152:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.email
+  : Result model.elicitation_schema.StringSchema := do
+  let ss ←
+    model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+  ok { ss with format := (some model.elicitation_schema.StringFormat.Email) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::uri]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 155:4-160:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.uri
+  : Result model.elicitation_schema.StringSchema := do
+  let ss ←
+    model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+  ok { ss with format := (some model.elicitation_schema.StringFormat.Uri) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::date]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 163:4-168:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.date
+  : Result model.elicitation_schema.StringSchema := do
+  let ss ←
+    model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+  ok { ss with format := (some model.elicitation_schema.StringFormat.Date) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::date_time]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 171:4-176:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.date_time
+  : Result model.elicitation_schema.StringSchema := do
+  let ss ←
+    model.elicitation_schema.StringSchema.Insts.CoreDefaultDefault.default
+  ok
+    { ss with format := (some model.elicitation_schema.StringFormat.DateTime) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 179:4-182:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.impl.title
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String)) (self : model.elicitation_schema.StringSchema)
+  (title : T0) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into title
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 185:4-188:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.impl.description
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String)) (self : model.elicitation_schema.StringSchema)
+  (description : T0) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into description
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::with_length]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 191:4-198:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.with_length
+  (self : model.elicitation_schema.StringSchema) (min : Std.U32)
+  (max : Std.U32) :
+  Result (core.result.Result model.elicitation_schema.StringSchema Str)
+  := do
+  if min > max
+  then ok (core.result.Result.Err (toStr "min_length must be <= max_length"))
+  else
+    ok (core.result.Result.Ok
+      { self with min_length := (some min), max_length := (some max) })
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::length]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 201:4-206:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.length
+  (self : model.elicitation_schema.StringSchema) (min : Std.U32)
+  (max : Std.U32) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  massert (min <= max)
+  ok { self with min_length := (some min), max_length := (some max) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::min_length]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 209:4-212:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.impl.min_length
+  (self : model.elicitation_schema.StringSchema) (min : Std.U32) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  ok { self with min_length := (some min) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::max_length]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 215:4-218:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.impl.max_length
+  (self : model.elicitation_schema.StringSchema) (max : Std.U32) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  ok { self with max_length := (some max) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::format]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 221:4-224:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.impl.format
+  (self : model.elicitation_schema.StringSchema)
+  (format : model.elicitation_schema.StringFormat) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  ok { self with format := (some format) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::StringSchema}::with_default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 227:4-230:5
+    Visibility: public -/
+def model.elicitation_schema.StringSchema.with_default
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.StringSchema) (default : T0) :
+  Result model.elicitation_schema.StringSchema
+  := do
+  let s ← coreconvertIntoT0StringInst.into default
+  ok { self with default := (some s) }
+
+/-- [rmcp::model::elicitation_schema::{impl core::default::Default for rmcp::model::elicitation_schema::IntegerSchema}::default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 390:4-399:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.Insts.CoreDefaultDefault.default
+  : Result model.elicitation_schema.IntegerSchema := do
+  ok
+    {
+      type_ := (),
+      title := none,
+      description := none,
+      minimum := none,
+      maximum := none,
+      default := none
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 404:4-406:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.new
+  : Result model.elicitation_schema.IntegerSchema := do
+  model.elicitation_schema.IntegerSchema.Insts.CoreDefaultDefault.default
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::with_range]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 409:4-416:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.with_range
+  (self : model.elicitation_schema.IntegerSchema) (min : Std.I64)
+  (max : Std.I64) :
+  Result (core.result.Result model.elicitation_schema.IntegerSchema Str)
+  := do
+  if min > max
+  then ok (core.result.Result.Err (toStr "minimum must be <= maximum"))
+  else
+    ok (core.result.Result.Ok
+      { self with minimum := (some min), maximum := (some max) })
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::range]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 419:4-424:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.range
+  (self : model.elicitation_schema.IntegerSchema) (min : Std.I64)
+  (max : Std.I64) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  massert (min <= max)
+  ok { self with minimum := (some min), maximum := (some max) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::minimum]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 427:4-430:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.impl.minimum
+  (self : model.elicitation_schema.IntegerSchema) (min : Std.I64) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  ok { self with minimum := (some min) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::maximum]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 433:4-436:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.impl.maximum
+  (self : model.elicitation_schema.IntegerSchema) (max : Std.I64) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  ok { self with maximum := (some max) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 439:4-442:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.impl.title
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.IntegerSchema) (title : T0) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into title
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 445:4-448:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.impl.description
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.IntegerSchema) (description : T0) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into description
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::IntegerSchema}::with_default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 451:4-454:5
+    Visibility: public -/
+def model.elicitation_schema.IntegerSchema.with_default
+  (self : model.elicitation_schema.IntegerSchema) (default : Std.I64) :
+  Result model.elicitation_schema.IntegerSchema
+  := do
+  ok { self with default := (some default) }
+
+/-- [rmcp::model::elicitation_schema::{impl core::default::Default for rmcp::model::elicitation_schema::BooleanSchema}::default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 485:4-492:5
+    Visibility: public -/
+def model.elicitation_schema.BooleanSchema.Insts.CoreDefaultDefault.default
+  : Result model.elicitation_schema.BooleanSchema := do
+  ok { type_ := (), title := none, description := none, default := none }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::BooleanSchema}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 497:4-499:5
+    Visibility: public -/
+def model.elicitation_schema.BooleanSchema.new
+  : Result model.elicitation_schema.BooleanSchema := do
+  model.elicitation_schema.BooleanSchema.Insts.CoreDefaultDefault.default
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::BooleanSchema}::title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 502:4-505:5
+    Visibility: public -/
+def model.elicitation_schema.BooleanSchema.impl.title
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.BooleanSchema) (title : T0) :
+  Result model.elicitation_schema.BooleanSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into title
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::BooleanSchema}::description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 508:4-511:5
+    Visibility: public -/
+def model.elicitation_schema.BooleanSchema.impl.description
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.BooleanSchema) (description : T0) :
+  Result model.elicitation_schema.BooleanSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into description
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::BooleanSchema}::with_default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 514:4-517:5
+    Visibility: public -/
+def model.elicitation_schema.BooleanSchema.with_default
+  (self : model.elicitation_schema.BooleanSchema) (default : Bool) :
+  Result model.elicitation_schema.BooleanSchema
+  := do
+  ok { self with default := (some default) }
+
+/-- [rmcp::model::elicitation_schema::{impl core::default::Default for rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::SingleSelect>}::default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 845:4-857:5
+    Visibility: public -/
+def
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.Insts.CoreDefaultDefault.default
+  :
+  Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.SingleSelect)
+  := do
+  ok
+    {
+      enum_values := (alloc.vec.Vec.new String),
+      titled := false,
+      title := none,
+      description := none,
+      enum_titles := (alloc.vec.Vec.new String),
+      min_items := none,
+      max_items := none,
+      default := (alloc.vec.Vec.new String),
+      select_type := ()
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<T>}::title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 863:4-866:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilder.impl.title
+  {T : Type _} {T1 : Type _} (coreconvertIntoT1CowStaticStrStringInst :
+  core.convert.Into T1 (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.EnumSchemaBuilder T) (value : T1) :
+  Result (model.elicitation_schema.EnumSchemaBuilder T)
+  := do
+  let c ← coreconvertIntoT1CowStaticStrStringInst.into value
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<T>}::description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 869:4-872:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilder.impl.description
+  {T : Type _} {T1 : Type _} (coreconvertIntoT1CowStaticStrStringInst :
+  core.convert.Into T1 (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.EnumSchemaBuilder T) (value : T1) :
+  Result (model.elicitation_schema.EnumSchemaBuilder T)
+  := do
+  let c ← coreconvertIntoT1CowStaticStrStringInst.into value
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<T>}::untitled]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 876:4-880:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilder.untitled
+  {T : Type _} (self : model.elicitation_schema.EnumSchemaBuilder T) :
+  Result (model.elicitation_schema.EnumSchemaBuilder T)
+  := do
+  ok { self with titled := false, enum_titles := (alloc.vec.Vec.new String) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<T>}::enum_titles]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 883:4-893:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilder.impl.enum_titles
+  {T : Type _} (self : model.elicitation_schema.EnumSchemaBuilder T)
+  (titles : alloc.vec.Vec String) :
+  Result (core.result.Result (model.elicitation_schema.EnumSchemaBuilder T)
+    String)
+  := do
+  let i := alloc.vec.Vec.len titles
+  let i1 := alloc.vec.Vec.len self.enum_values
+  if i != i1
+  then
+    let i2 := alloc.vec.Vec.len self.enum_values
+    let i3 := alloc.vec.Vec.len titles
+    let s ← model.elicitation_schema.prim.titles_mismatch_message i2 i3
+    ok (core.result.Result.Err s)
+  else
+    ok (core.result.Result.Ok
+      { self with titled := true, enum_titles := titles })
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::SingleSelect>}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 898:4-903:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderSingleSelect.new
+  (values : alloc.vec.Vec String) :
+  Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.SingleSelect)
+  := do
+  let esb ←
+    model.elicitation_schema.EnumSchemaBuilderSingleSelect.Insts.CoreDefaultDefault.default
+  ok { esb with enum_values := values }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::SingleSelect>}::multiselect]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 910:4-922:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderSingleSelect.multiselect
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.SingleSelect) :
+  Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.MultiSelect)
+  := do
+  ok
+    {
+      enum_values := self.enum_values,
+      titled := self.titled,
+      title := self.title,
+      description := self.description,
+      enum_titles := self.enum_titles,
+      min_items := none,
+      max_items := none,
+      default := (alloc.vec.Vec.new String),
+      select_type := ()
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::SingleSelect>}::with_default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 925:4-935:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderSingleSelect.with_default
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.SingleSelect) (default_value : T0) :
+  Result (core.result.Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.SingleSelect) String)
+  := do
+  let value ← coreconvertIntoT0StringInst.into default_value
+  let s := alloc.vec.Vec.deref self.enum_values
+  let b ←
+    core.slice.Slice.contains alloc.string.String.Insts.CoreCmpPartialEqString
+      s value
+  if b
+  then
+    let y ←
+      lift (Std.Array.to_slice (Array.make 1#usize [ value ] : Array String
+        1#usize))
+    let ret := alloc.slice.Slice.into_vec y
+    ok (core.result.Result.Ok { self with default := ret })
+  else
+    let s1 ←
+      Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+        "Provided default value is not in enum values")
+    ok (core.result.Result.Err s1)
+
+/-- [rmcp::model::elicitation_schema::const_titles]: loop body 0:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1798:4-1803:5 -/
+@[rust_loop_body]
+def model.elicitation_schema.const_titles_loop.body
+  (iter : alloc.vec.into_iter.IntoIter String)
+  (values : alloc.vec.into_iter.IntoIter String)
+  (out : alloc.vec.Vec model.elicitation_schema.ConstTitle) :
+  Result (ControlFlow ((alloc.vec.into_iter.IntoIter String) ×
+    (alloc.vec.into_iter.IntoIter String) × (alloc.vec.Vec
+    model.elicitation_schema.ConstTitle)) (alloc.vec.Vec
+    model.elicitation_schema.ConstTitle))
+  := do
+  let (o, iter1) ← alloc.vec.into_iter.IteratorIntoIter.next iter
+  match o with
+  | none => ok (done out)
+  | some title =>
+    let (o1, values1) ← alloc.vec.into_iter.IteratorIntoIter.next values
+    match o1 with
+    | none => ok (done out)
+    | some const_ =>
+      let out1 ←
+        alloc.vec.Vec.push out ({ const_, title } :
+          model.elicitation_schema.ConstTitle)
+      ok (cont (iter1, values1, out1))
+
+/-- [rmcp::model::elicitation_schema::const_titles]: loop 0:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1798:4-1803:5 -/
+@[rust_loop]
+def model.elicitation_schema.const_titles_loop
+  (iter : alloc.vec.into_iter.IntoIter String)
+  (values : alloc.vec.into_iter.IntoIter String)
+  (out : alloc.vec.Vec model.elicitation_schema.ConstTitle) :
+  Result (alloc.vec.Vec model.elicitation_schema.ConstTitle)
+  := do
+  loop
+    (fun (iter1, values1, out1) =>
+      model.elicitation_schema.const_titles_loop.body iter1 values1 out1)
+    (iter, values, out)
+
+/-- [rmcp::model::elicitation_schema::const_titles]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1795:0-1805:1 -/
+def model.elicitation_schema.const_titles
+  (titles : alloc.vec.Vec String) (values : alloc.vec.Vec String) :
+  Result (alloc.vec.Vec model.elicitation_schema.ConstTitle)
+  := do
+  let values1 ← alloc.vec.IntoIteratorVec.into_iter values
+  let iter ← alloc.vec.IntoIteratorVec.into_iter titles
+  model.elicitation_schema.const_titles_loop iter values1 (alloc.vec.Vec.new
+    model.elicitation_schema.ConstTitle)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::SingleSelect>}::build]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 938:4-959:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderSingleSelect.build
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.SingleSelect) :
+  Result model.elicitation_schema.EnumSchema
+  := do
+  if self.titled
+  then
+    let v ←
+      model.elicitation_schema.const_titles self.enum_titles self.enum_values
+    let (o, _) ← alloc.vec.Vec.pop alloc.alloc.Global self.default
+    ok (model.elicitation_schema.EnumSchema.Single
+      (model.elicitation_schema.SingleSelectEnumSchema.Titled
+      {
+        type_ := (),
+        title := self.title,
+        description := self.description,
+        one_of := v,
+        default := o
+      }))
+  else
+    let (o, _) ← alloc.vec.Vec.pop alloc.alloc.Global self.default
+    ok (model.elicitation_schema.EnumSchema.Single
+      (model.elicitation_schema.SingleSelectEnumSchema.Untitled
+      {
+        type_ := (),
+        title := self.title,
+        description := self.description,
+        enum_ := self.enum_values,
+        default := o
+      }))
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::single_select]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 966:4-978:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.single_select
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.MultiSelect) :
+  Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.SingleSelect)
+  := do
+  ok
+    {
+      enum_values := self.enum_values,
+      titled := self.titled,
+      title := self.title,
+      description := self.description,
+      enum_titles := self.enum_titles,
+      min_items := none,
+      max_items := none,
+      default := (alloc.vec.Vec.new String),
+      select_type := ()
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{impl core::ops::function::FnMut<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{closure}<'_0, '_1>}::call_mut]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 996:17-996:57 -/
+def
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+  (c :
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure)
+  (tupled_args : String) :
+  Result (Bool ×
+    model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure)
+  := do
+  let s := alloc.vec.Vec.deref c
+  let b ←
+    core.slice.Slice.contains alloc.string.String.Insts.CoreCmpPartialEqString
+      s tupled_args
+  ok (b, c)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{impl core::ops::function::FnOnce<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{closure}<'_0, '_1>}::call_once]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 996:17-996:57 -/
+def
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool.call_once
+  (c :
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure)
+  (s : String) :
+  Result Bool
+  := do
+  let (b, _) ←
+    model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+      c s
+  ok b
+
+/-- Trait implementation: [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{impl core::ops::function::FnOnce<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{closure}<'_0, '_1>}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 996:17-996:57 -/
+@[reducible]
+def
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool
+  : core.ops.function.FnOnce
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure
+  String Bool := {
+  call_once :=
+    model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool.call_once
+}
+
+/-- Trait implementation: [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{impl core::ops::function::FnMut<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{closure}<'_0, '_1>}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 996:17-996:57 -/
+@[reducible]
+def
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool
+  : core.ops.function.FnMut
+  model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure
+  String Bool := {
+  FnOnceInst :=
+    model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool
+  call_mut :=
+    model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+}
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 990:4-1018:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.MultiSelect) (default_values : alloc.vec.Vec String)
+  :
+  Result (core.result.Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.MultiSelect) String)
+  := do
+  let s := alloc.vec.Vec.deref default_values
+  let i ← core.slice.Slice.iter s
+  let (b, _) ←
+    core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.all
+      model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool
+      i self.enum_values
+  if b
+  then
+    let b1 ← alloc.vec.Vec.is_empty default_values
+    if b1
+    then ok (core.result.Result.Ok { self with default := default_values })
+    else
+      match self.min_items with
+      | none =>
+        match self.max_items with
+        | none =>
+          ok (core.result.Result.Ok { self with default := default_values })
+        | some max =>
+          let i1 := alloc.vec.Vec.len default_values
+          let i2 ← lift (UScalar.cast .U64 i1)
+          if i2 > max
+          then
+            let s1 ←
+              Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+                "Number of provided default values is greater than max_items")
+            ok (core.result.Result.Err s1)
+          else
+            ok (core.result.Result.Ok { self with default := default_values })
+      | some min =>
+        let i1 := alloc.vec.Vec.len default_values
+        let i2 ← lift (UScalar.cast .U64 i1)
+        if i2 < min
+        then
+          let s1 ←
+            Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+              "Number of provided default values is less than min_items")
+          ok (core.result.Result.Err s1)
+        else
+          match self.max_items with
+          | none =>
+            ok (core.result.Result.Ok { self with default := default_values })
+          | some max =>
+            let i3 := alloc.vec.Vec.len default_values
+            let i4 ← lift (UScalar.cast .U64 i3)
+            if i4 > max
+            then
+              let s1 ←
+                Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+                  "Number of provided default values is greater than max_items")
+              ok (core.result.Result.Err s1)
+            else
+              ok (core.result.Result.Ok
+                { self with default := default_values })
+  else
+    let s1 ←
+      Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+        "One of the provided default values is not in enum values")
+    ok (core.result.Result.Err s1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::min_items]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1029:4-1041:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.min_items
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.MultiSelect) (value : Std.U64) :
+  Result (core.result.Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.MultiSelect) String)
+  := do
+  match self.max_items with
+  | none =>
+    let b ← alloc.vec.Vec.is_empty self.default
+    if b
+    then ok (core.result.Result.Ok { self with min_items := (some value) })
+    else
+      let i := alloc.vec.Vec.len self.default
+      let i1 ← lift (UScalar.cast .U64 i)
+      if i1 < value
+      then
+        let s ←
+          Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+            "Number of provided default values is less than min_items")
+        ok (core.result.Result.Err s)
+      else ok (core.result.Result.Ok { self with min_items := (some value) })
+  | some max =>
+    if value > max
+    then
+      let s ←
+        Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+          "Provided value is greater than max_items")
+      ok (core.result.Result.Err s)
+    else
+      let b ← alloc.vec.Vec.is_empty self.default
+      if b
+      then ok (core.result.Result.Ok { self with min_items := (some value) })
+      else
+        let i := alloc.vec.Vec.len self.default
+        let i1 ← lift (UScalar.cast .U64 i)
+        if i1 < value
+        then
+          let s ←
+            Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+              "Number of provided default values is less than min_items")
+          ok (core.result.Result.Err s)
+        else ok (core.result.Result.Ok { self with min_items := (some value) })
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::max_items]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1052:4-1063:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.max_items
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.MultiSelect) (value : Std.U64) :
+  Result (core.result.Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.MultiSelect) String)
+  := do
+  match self.min_items with
+  | none =>
+    let b ← alloc.vec.Vec.is_empty self.default
+    if b
+    then ok (core.result.Result.Ok { self with max_items := (some value) })
+    else
+      let i := alloc.vec.Vec.len self.default
+      let i1 ← lift (UScalar.cast .U64 i)
+      if i1 > value
+      then
+        let s ←
+          Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+            "Number of provided default values is greater than max_items")
+        ok (core.result.Result.Err s)
+      else ok (core.result.Result.Ok { self with max_items := (some value) })
+  | some min =>
+    if value < min
+    then
+      let s ←
+        Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+          "Provided value is less than min_items")
+      ok (core.result.Result.Err s)
+    else
+      let b ← alloc.vec.Vec.is_empty self.default
+      if b
+      then ok (core.result.Result.Ok { self with max_items := (some value) })
+      else
+        let i := alloc.vec.Vec.len self.default
+        let i1 ← lift (UScalar.cast .U64 i)
+        if i1 > value
+        then
+          let s ←
+            Str.Insts.AllocBorrowToOwnedString.to_owned (toStr
+              "Number of provided default values is greater than max_items")
+          ok (core.result.Result.Err s)
+        else ok (core.result.Result.Ok { self with max_items := (some value) })
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::build]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1066:4-1102:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.build
+  (self : model.elicitation_schema.EnumSchemaBuilder
+  model.elicitation_schema.MultiSelect) :
+  Result model.elicitation_schema.EnumSchema
+  := do
+  if self.titled
+  then
+    let v ←
+      model.elicitation_schema.const_titles self.enum_titles self.enum_values
+    let b ← alloc.vec.Vec.is_empty self.default
+    if b
+    then
+      ok (model.elicitation_schema.EnumSchema.Multi
+        (model.elicitation_schema.MultiSelectEnumSchema.Titled
+        {
+          type_ := (),
+          title := self.title,
+          description := self.description,
+          min_items := self.min_items,
+          max_items := self.max_items,
+          items := { any_of := v },
+          default := none
+        }))
+    else
+      ok (model.elicitation_schema.EnumSchema.Multi
+        (model.elicitation_schema.MultiSelectEnumSchema.Titled
+        {
+          type_ := (),
+          title := self.title,
+          description := self.description,
+          min_items := self.min_items,
+          max_items := self.max_items,
+          items := { any_of := v },
+          default := (some self.default)
+        }))
+  else
+    let b ← alloc.vec.Vec.is_empty self.default
+    if b
+    then
+      ok (model.elicitation_schema.EnumSchema.Multi
+        (model.elicitation_schema.MultiSelectEnumSchema.Untitled
+        {
+          type_ := (),
+          title := self.title,
+          description := self.description,
+          min_items := self.min_items,
+          max_items := self.max_items,
+          items := { type_ := (), enum_ := self.enum_values },
+          default := none
+        }))
+    else
+      ok (model.elicitation_schema.EnumSchema.Multi
+        (model.elicitation_schema.MultiSelectEnumSchema.Untitled
+        {
+          type_ := (),
+          title := self.title,
+          description := self.description,
+          min_items := self.min_items,
+          max_items := self.max_items,
+          items := { type_ := (), enum_ := self.enum_values },
+          default := (some self.default)
+        }))
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchema}::builder]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1128:4-1130:5
+    Visibility: public -/
+def model.elicitation_schema.EnumSchema.builder
+  (values : alloc.vec.Vec String) :
+  Result (model.elicitation_schema.EnumSchemaBuilder
+    model.elicitation_schema.SingleSelect)
+  := do
+  model.elicitation_schema.EnumSchemaBuilderSingleSelect.new values
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1259:4-1270:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.new
+  (properties : alloc.collections.btree.map.BTreeMap String
+  model.elicitation_schema.PrimitiveSchemaDefinition alloc.alloc.Global) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  let v ← model.elicitation_schema.prim.sorted_keys properties
+  ok
+    {
+      schema := none,
+      type_ := (),
+      title := none,
+      properties,
+      property_order := (some v),
+      required := none,
+      description := none
+    }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::with_required]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1341:4-1344:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.with_required
+  (self : model.elicitation_schema.ElicitationSchema)
+  (required : alloc.vec.Vec String) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  ok { self with required := (some required) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::with_title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1347:4-1350:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.with_title
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.ElicitationSchema) (title : T0) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into title
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::with_description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1353:4-1356:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.with_description
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.ElicitationSchema) (description : T0) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into description
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::with_schema]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1359:4-1362:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.with_schema
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.ElicitationSchema) (schema : T0) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into schema
+  ok { self with schema := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{impl core::default::Default for rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::default]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1388:16-1388:23
+    Visibility: public -/
+def
+  model.elicitation_schema.ElicitationSchemaBuilder.Insts.CoreDefaultDefault.default
+  : Result model.elicitation_schema.ElicitationSchemaBuilder := do
+  let bm ←
+    alloc.collections.btree.map.BTreeMapKVGlobal.Insts.CoreDefaultDefault.default
+      String model.elicitation_schema.PrimitiveSchemaDefinition
+  let v ← alloc.vec.Vec.Insts.CoreDefaultDefault.default String
+  let o ←
+    core.option.Option.Insts.CoreDefaultDefault.default (alloc.borrow.Cow Str
+      String)
+  ok { properties := bm, required := v, title := o, description := o }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::new]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1399:4-1401:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.new
+  : Result model.elicitation_schema.ElicitationSchemaBuilder := do
+  model.elicitation_schema.ElicitationSchemaBuilder.Insts.CoreDefaultDefault.default
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchema}::builder]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1365:4-1367:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchema.builder
+  : Result model.elicitation_schema.ElicitationSchemaBuilder := do
+  model.elicitation_schema.ElicitationSchemaBuilder.new
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1404:4-1407:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.property
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (schema : model.elicitation_schema.PrimitiveSchemaDefinition) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let s ← coreconvertIntoT0StringInst.into «name»
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties s schema
+  ok { self with properties := bm }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1410:4-1419:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_property
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (schema : model.elicitation_schema.PrimitiveSchemaDefinition) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let name_str ← coreconvertIntoT0StringInst.into «name»
+  let s ← alloc.string.String.Insts.CoreCloneClone.clone name_str
+  let v ← alloc.vec.Vec.push self.required s
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties name_str schema
+  ok { self with properties := bm, required := v }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::string_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1426:4-1436:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.string_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.StringSchema
+  model.elicitation_schema.StringSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let s ← coreconvertIntoT0StringInst.into «name»
+  let ss ← model.elicitation_schema.StringSchema.new
+  let ss1 ←
+    coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst.call_once f ss
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties s
+      (model.elicitation_schema.PrimitiveSchemaDefinition.String ss1)
+  ok { self with properties := bm }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_string_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1439:4-1451:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_string_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.StringSchema
+  model.elicitation_schema.StringSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let name_str ← coreconvertIntoT0StringInst.into «name»
+  let s ← alloc.string.String.Insts.CoreCloneClone.clone name_str
+  let v ← alloc.vec.Vec.push self.required s
+  let ss ← model.elicitation_schema.StringSchema.new
+  let ss1 ←
+    coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst.call_once f ss
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties name_str
+      (model.elicitation_schema.PrimitiveSchemaDefinition.String ss1)
+  ok { self with properties := bm, required := v }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::integer_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1482:4-1492:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.integer_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.IntegerSchema
+  model.elicitation_schema.IntegerSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let s ← coreconvertIntoT0StringInst.into «name»
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ←
+    coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst.call_once f is
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties s
+      (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+  ok { self with properties := bm }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_integer_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1495:4-1507:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_integer_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.IntegerSchema
+  model.elicitation_schema.IntegerSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let name_str ← coreconvertIntoT0StringInst.into «name»
+  let s ← alloc.string.String.Insts.CoreCloneClone.clone name_str
+  let v ← alloc.vec.Vec.push self.required s
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ←
+    coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst.call_once f is
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties name_str
+      (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+  ok { self with properties := bm, required := v }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::bool_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1510:4-1520:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.bool_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.BooleanSchema
+  model.elicitation_schema.BooleanSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let s ← coreconvertIntoT0StringInst.into «name»
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  let bs1 ←
+    coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst.call_once f bs
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties s
+      (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs1)
+  ok { self with properties := bm }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_bool_property]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1523:4-1535:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_bool_property
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.BooleanSchema
+  model.elicitation_schema.BooleanSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let name_str ← coreconvertIntoT0StringInst.into «name»
+  let s ← alloc.string.String.Insts.CoreCloneClone.clone name_str
+  let v ← alloc.vec.Vec.push self.required s
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  let bs1 ←
+    coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst.call_once f bs
+  let (_, bm) ←
+    alloc.collections.btree.map.BTreeMap.insert
+      alloc.alloc.Global.Insts.CoreAllocAllocatorClone
+      alloc.string.String.Insts.CoreCmpOrd self.properties name_str
+      (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs1)
+  ok { self with properties := bm, required := v }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_string]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1542:4-1544:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_string
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.new
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_string]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1547:4-1549:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_string
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.new
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_email]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1552:4-1557:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_email
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.email
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_email]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1560:4-1565:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_email
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.email
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_string_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1568:4-1577:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_string_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.StringSchema
+  model.elicitation_schema.StringSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.new
+  let ss1 ←
+    coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst.call_once f ss
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_string_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1580:4-1589:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_string_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.StringSchema
+  model.elicitation_schema.StringSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let ss ← model.elicitation_schema.StringSchema.new
+  let ss1 ←
+    coreopsfunctionFnOnceT1TupleStringSchemaStringSchemaInst.call_once f ss
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.String ss1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_integer]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1636:4-1641:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_integer
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (min : Std.I64) (max : Std.I64) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ← model.elicitation_schema.IntegerSchema.range is min max
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_integer]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1644:4-1649:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_integer
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (min : Std.I64) (max : Std.I64) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ← model.elicitation_schema.IntegerSchema.range is min max
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_integer_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1652:4-1661:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_integer_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.IntegerSchema
+  model.elicitation_schema.IntegerSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ←
+    coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst.call_once f is
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_integer_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1664:4-1673:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_integer_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.IntegerSchema
+  model.elicitation_schema.IntegerSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let is ← model.elicitation_schema.IntegerSchema.new
+  let is1 ←
+    coreopsfunctionFnOnceT1TupleIntegerSchemaIntegerSchemaInst.call_once f is
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Integer is1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_bool]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1678:4-1683:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_bool
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_bool]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1686:4-1691:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_bool
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (default : Bool) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  let bs1 ← model.elicitation_schema.BooleanSchema.with_default bs default
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_bool_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1694:4-1703:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_bool_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.BooleanSchema
+  model.elicitation_schema.BooleanSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  let bs1 ←
+    coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst.call_once f bs
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_bool_with]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1706:4-1715:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_bool_with
+  {T0 : Type _} {T1 : Type _} (coreconvertIntoT0StringInst : core.convert.Into
+  T0 String) (coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst :
+  core.ops.function.FnOnce T1 model.elicitation_schema.BooleanSchema
+  model.elicitation_schema.BooleanSchema)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (f : T1) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let bs ← model.elicitation_schema.BooleanSchema.new
+  let bs1 ←
+    coreopsfunctionFnOnceT1TupleBooleanSchemaBooleanSchemaInst.call_once f bs
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Boolean bs1)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::required_enum_schema]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1720:4-1722:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.required_enum_schema
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (enum_schema : model.elicitation_schema.EnumSchema) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  model.elicitation_schema.ElicitationSchemaBuilder.required_property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Enum enum_schema)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::optional_enum_schema]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1725:4-1727:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.optional_enum_schema
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0)
+  (enum_schema : model.elicitation_schema.EnumSchema) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  model.elicitation_schema.ElicitationSchemaBuilder.property
+    coreconvertIntoT0StringInst self «name»
+    (model.elicitation_schema.PrimitiveSchemaDefinition.Enum enum_schema)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::mark_required]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1730:4-1733:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.mark_required
+  {T0 : Type _} (coreconvertIntoT0StringInst : core.convert.Into T0 String)
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) («name» : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let s ← coreconvertIntoT0StringInst.into «name»
+  let v ← alloc.vec.Vec.push self.required s
+  ok { self with required := v }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::title]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1736:4-1739:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.impl.title
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) (title : T0) :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into title
+  ok { self with title := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::description]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1742:4-1745:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.impl.description
+  {T0 : Type _} (coreconvertIntoT0CowStaticStrStringInst : core.convert.Into T0
+  (alloc.borrow.Cow Str String))
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) (description : T0)
+  :
+  Result model.elicitation_schema.ElicitationSchemaBuilder
+  := do
+  let c ← coreconvertIntoT0CowStaticStrStringInst.into description
+  ok { self with description := (some c) }
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{impl core::ops::function::FnMut<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{closure}<'_0, '_1>}::call_mut]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1762:21-1762:60 -/
+def
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+  (c : model.elicitation_schema.ElicitationSchemaBuilder.build.closure)
+  (tupled_args : String) :
+  Result (Bool ×
+    model.elicitation_schema.ElicitationSchemaBuilder.build.closure)
+  := do
+  let s := alloc.vec.Vec.deref c
+  let b ←
+    core.slice.Slice.contains alloc.string.String.Insts.CoreCmpPartialEqString
+      s tupled_args
+  ok (b, c)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{impl core::ops::function::FnOnce<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{closure}<'_0, '_1>}::call_once]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1762:21-1762:60 -/
+def
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool.call_once
+  (c : model.elicitation_schema.ElicitationSchemaBuilder.build.closure)
+  (s : String) :
+  Result Bool
+  := do
+  let (b, _) ←
+    model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+      c s
+  ok b
+
+/-- Trait implementation: [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{impl core::ops::function::FnOnce<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{closure}<'_0, '_1>}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1762:21-1762:60 -/
+@[reducible]
+def
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool
+  : core.ops.function.FnOnce
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure String Bool
+  := {
+  call_once :=
+    model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool.call_once
+}
+
+/-- Trait implementation: [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{impl core::ops::function::FnMut<(&'_0 alloc::string::String,), bool> for rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{closure}<'_0, '_1>}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1762:21-1762:60 -/
+@[reducible]
+def
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool
+  : core.ops.function.FnMut
+  model.elicitation_schema.ElicitationSchemaBuilder.build.closure String Bool
+  := {
+  FnOnceInst :=
+    model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnOnceTupleShared0StringBool
+  call_mut :=
+    model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool.call_mut
+}
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1754:4-1781:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.build
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) :
+  Result (core.result.Result model.elicitation_schema.ElicitationSchema Str)
+  := do
+  let names ← model.elicitation_schema.prim.sorted_keys self.properties
+  let b ← alloc.vec.Vec.is_empty self.required
+  if b
+  then
+    if b
+    then
+      ok (core.result.Result.Ok
+        {
+          schema := none,
+          type_ := (),
+          title := self.title,
+          properties := self.properties,
+          property_order := (some names),
+          required := none,
+          description := self.description
+        })
+    else
+      ok (core.result.Result.Ok
+        {
+          schema := none,
+          type_ := (),
+          title := self.title,
+          properties := self.properties,
+          property_order := (some names),
+          required := (some self.required),
+          description := self.description
+        })
+  else
+    let s := alloc.vec.Vec.deref self.required
+    let i ← core.slice.Slice.iter s
+    let (b1, _) ←
+      core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.all
+        model.elicitation_schema.ElicitationSchemaBuilder.build.closure.Insts.CoreOpsFunctionFnMutTupleShared0StringBool
+        i names
+    if b1
+    then
+      if b
+      then
+        ok (core.result.Result.Ok
+          {
+            schema := none,
+            type_ := (),
+            title := self.title,
+            properties := self.properties,
+            property_order := (some names),
+            required := none,
+            description := self.description
+          })
+      else
+        ok (core.result.Result.Ok
+          {
+            schema := none,
+            type_ := (),
+            title := self.title,
+            properties := self.properties,
+            property_order := (some names),
+            required := (some self.required),
+            description := self.description
+          })
+    else
+      ok (core.result.Result.Err (toStr
+        "Required field does not exist in properties"))
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build_unchecked]:
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1788:4-1790:5
+    Visibility: public -/
+def model.elicitation_schema.ElicitationSchemaBuilder.build_unchecked
+  (self : model.elicitation_schema.ElicitationSchemaBuilder) :
+  Result model.elicitation_schema.ElicitationSchema
+  := do
+  let r ← model.elicitation_schema.ElicitationSchemaBuilder.build self
+  core.result.Result.expect (core.fmt.DebugShared Str.Insts.CoreFmtDebug) r
+    (toStr "Invalid elicitation schema")
 
 /-- [rmcp::model::request_state::VERSION_V1]
     Source: 'crates/rmcp/src/model/request_state.rs', lines 78:0-78:31 -/

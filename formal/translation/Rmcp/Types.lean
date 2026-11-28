@@ -39,6 +39,13 @@ structure core.hash.BuildHasher (Self : Type _) (Self_Hasher : Type _) where
   HasherInst : core.hash.Hasher Self_Hasher
   build_hasher : Self → Result Self_Hasher
 
+/-- [core::marker::PhantomData]
+    Source: '/rustc/library/core/src/marker.rs', lines 811:0-811:39
+    Name pattern: [core::marker::PhantomData]
+    Visibility: public -/
+@[reducible, rust_type "core::marker::PhantomData"]
+def core.marker.PhantomData (T : Type _) := Unit
+
 /-- [core::net::ip_addr::IpAddr]
     Source: '/rustc/library/core/src/net/ip_addr.rs', lines 30:0-30:15
     Name pattern: [core::net::ip_addr::IpAddr]
@@ -339,6 +346,292 @@ structure model.annotated.Annotations where
   audience : Option (alloc.vec.Vec model.Role)
   priority : Option F32
   last_modified : Option String
+
+/-- [rmcp::model::elicitation_schema::ObjectTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 30:0-30:41
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.ObjectTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::StringTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 31:0-31:41
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.StringTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::NumberTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 32:0-32:41
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.NumberTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::IntegerTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 33:0-33:43
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.IntegerTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::BooleanTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 34:0-34:43
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.BooleanTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::ArrayTypeConst]
+    Source: 'crates/rmcp/src/model.rs', lines 91:8-91:25; this code is generated from a macro invocation at: 'crates/rmcp/src/model/elicitation_schema.rs', lines 36:0-36:39
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.ArrayTypeConst := Unit
+
+/-- [rmcp::model::elicitation_schema::ConstTitle]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 530:0-534:1
+    Visibility: public -/
+structure model.elicitation_schema.ConstTitle where
+  const_ : String
+  title : String
+
+/-- [rmcp::model::elicitation_schema::TitledItems]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 662:0-667:1
+    Visibility: public -/
+structure model.elicitation_schema.TitledItems where
+  any_of : alloc.vec.Vec model.elicitation_schema.ConstTitle
+
+/-- [rmcp::model::elicitation_schema::TitledMultiSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 702:0-716:1
+    Visibility: public -/
+structure model.elicitation_schema.TitledMultiSelectEnumSchema where
+  type_ : model.elicitation_schema.ArrayTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  min_items : Option Std.U64
+  max_items : Option Std.U64
+  items : model.elicitation_schema.TitledItems
+  default : Option (alloc.vec.Vec String)
+
+/-- [rmcp::model::elicitation_schema::UntitledItems]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 642:0-647:1
+    Visibility: public -/
+structure model.elicitation_schema.UntitledItems where
+  type_ : model.elicitation_schema.StringTypeConst
+  enum_ : alloc.vec.Vec String
+
+/-- [rmcp::model::elicitation_schema::UntitledMultiSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 681:0-695:1
+    Visibility: public -/
+structure model.elicitation_schema.UntitledMultiSelectEnumSchema where
+  type_ : model.elicitation_schema.ArrayTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  min_items : Option Std.U64
+  max_items : Option Std.U64
+  items : model.elicitation_schema.UntitledItems
+  default : Option (alloc.vec.Vec String)
+
+/-- [rmcp::model::elicitation_schema::MultiSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 768:0-771:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.elicitation_schema.MultiSelectEnumSchema where
+| Untitled :
+  model.elicitation_schema.UntitledMultiSelectEnumSchema →
+  model.elicitation_schema.MultiSelectEnumSchema
+| Titled :
+  model.elicitation_schema.TitledMultiSelectEnumSchema →
+  model.elicitation_schema.MultiSelectEnumSchema
+
+/-- [rmcp::model::elicitation_schema::TitledSingleSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 602:0-613:1
+    Visibility: public -/
+structure model.elicitation_schema.TitledSingleSelectEnumSchema where
+  type_ : model.elicitation_schema.StringTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  one_of : alloc.vec.Vec model.elicitation_schema.ConstTitle
+  default : Option String
+
+/-- [rmcp::model::elicitation_schema::UntitledSingleSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 584:0-595:1
+    Visibility: public -/
+structure model.elicitation_schema.UntitledSingleSelectEnumSchema where
+  type_ : model.elicitation_schema.StringTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  enum_ : alloc.vec.Vec String
+  default : Option String
+
+/-- [rmcp::model::elicitation_schema::SingleSelectEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 633:0-636:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.elicitation_schema.SingleSelectEnumSchema where
+| Untitled :
+  model.elicitation_schema.UntitledSingleSelectEnumSchema →
+  model.elicitation_schema.SingleSelectEnumSchema
+| Titled :
+  model.elicitation_schema.TitledSingleSelectEnumSchema →
+  model.elicitation_schema.SingleSelectEnumSchema
+
+/-- [rmcp::model::elicitation_schema::LegacyEnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 551:0-564:1
+    Visibility: public -/
+structure model.elicitation_schema.LegacyEnumSchema where
+  type_ : model.elicitation_schema.StringTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  enum_ : alloc.vec.Vec String
+  enum_names : Option (alloc.vec.Vec String)
+  default : Option String
+
+/-- [rmcp::model::elicitation_schema::EnumSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 792:0-796:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.elicitation_schema.EnumSchema where
+| Single :
+  model.elicitation_schema.SingleSelectEnumSchema →
+  model.elicitation_schema.EnumSchema
+| Multi :
+  model.elicitation_schema.MultiSelectEnumSchema →
+  model.elicitation_schema.EnumSchema
+| Legacy :
+  model.elicitation_schema.LegacyEnumSchema →
+  model.elicitation_schema.EnumSchema
+
+/-- [rmcp::model::elicitation_schema::BooleanSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 466:0-482:1
+    Visibility: public -/
+structure model.elicitation_schema.BooleanSchema where
+  type_ : model.elicitation_schema.BooleanTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  default : Option Bool
+
+/-- [rmcp::model::elicitation_schema::IntegerSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 363:0-387:1
+    Visibility: public -/
+structure model.elicitation_schema.IntegerSchema where
+  type_ : model.elicitation_schema.IntegerTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  minimum : Option Std.I64
+  maximum : Option Std.I64
+  default : Option Std.I64
+
+/-- [rmcp::model::elicitation_schema::NumberSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 245:0-281:1
+    Visibility: public -/
+structure model.elicitation_schema.NumberSchema where
+  type_ : model.elicitation_schema.NumberTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  minimum : Option F64
+  maximum : Option F64
+  default : Option F64
+
+/-- [rmcp::model::elicitation_schema::StringFormat]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 76:0-85:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.elicitation_schema.StringFormat where
+| Email : model.elicitation_schema.StringFormat
+| Uri : model.elicitation_schema.StringFormat
+| Date : model.elicitation_schema.StringFormat
+| DateTime : model.elicitation_schema.StringFormat
+
+/-- [rmcp::model::elicitation_schema::StringSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 96:0-124:1
+    Visibility: public -/
+structure model.elicitation_schema.StringSchema where
+  type_ : model.elicitation_schema.StringTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  min_length : Option Std.U32
+  max_length : Option Std.U32
+  format : Option model.elicitation_schema.StringFormat
+  default : Option String
+
+/-- [rmcp::model::elicitation_schema::PrimitiveSchemaDefinition]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 54:0-65:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.elicitation_schema.PrimitiveSchemaDefinition where
+| Enum :
+  model.elicitation_schema.EnumSchema →
+  model.elicitation_schema.PrimitiveSchemaDefinition
+| String :
+  model.elicitation_schema.StringSchema →
+  model.elicitation_schema.PrimitiveSchemaDefinition
+| Number :
+  model.elicitation_schema.NumberSchema →
+  model.elicitation_schema.PrimitiveSchemaDefinition
+| Integer :
+  model.elicitation_schema.IntegerSchema →
+  model.elicitation_schema.PrimitiveSchemaDefinition
+| Boolean :
+  model.elicitation_schema.BooleanSchema →
+  model.elicitation_schema.PrimitiveSchemaDefinition
+
+/-- [rmcp::model::elicitation_schema::SingleSelect]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 801:0-801:24
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.SingleSelect := Unit
+
+/-- [rmcp::model::elicitation_schema::MultiSelect]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 805:0-805:23
+    Visibility: public -/
+@[reducible]
+def model.elicitation_schema.MultiSelect := Unit
+
+/-- [rmcp::model::elicitation_schema::EnumSchemaBuilder]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 823:0-841:1
+    Visibility: public -/
+structure model.elicitation_schema.EnumSchemaBuilder (T : Type _) where
+  enum_values : alloc.vec.Vec String
+  titled : Bool
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+  enum_titles : alloc.vec.Vec String
+  min_items : Option Std.U64
+  max_items : Option Std.U64
+  default : alloc.vec.Vec String
+  select_type : core.marker.PhantomData T
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::EnumSchemaBuilder<rmcp::model::elicitation_schema::MultiSelect>}::with_default::{closure}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 996:17-996:57 -/
+@[reducible]
+def model.elicitation_schema.EnumSchemaBuilderMultiSelect.with_default.closure
+  :=
+  alloc.vec.Vec String
+
+/-- [rmcp::model::elicitation_schema::ElicitationSchema]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1158:0-1191:1
+    Visibility: public -/
+structure model.elicitation_schema.ElicitationSchema where
+  schema : Option (alloc.borrow.Cow Str String)
+  type_ : model.elicitation_schema.ObjectTypeConst
+  title : Option (alloc.borrow.Cow Str String)
+  properties : alloc.collections.btree.map.BTreeMap String
+    model.elicitation_schema.PrimitiveSchemaDefinition alloc.alloc.Global
+  property_order : Option (alloc.vec.Vec String)
+  required : Option (alloc.vec.Vec String)
+  description : Option (alloc.borrow.Cow Str String)
+
+/-- [rmcp::model::elicitation_schema::ElicitationSchemaBuilder]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1390:0-1395:1
+    Visibility: public -/
+structure model.elicitation_schema.ElicitationSchemaBuilder where
+  properties : alloc.collections.btree.map.BTreeMap String
+    model.elicitation_schema.PrimitiveSchemaDefinition alloc.alloc.Global
+  required : alloc.vec.Vec String
+  title : Option (alloc.borrow.Cow Str String)
+  description : Option (alloc.borrow.Cow Str String)
+
+/-- [rmcp::model::elicitation_schema::{rmcp::model::elicitation_schema::ElicitationSchemaBuilder}::build::{closure}]
+    Source: 'crates/rmcp/src/model/elicitation_schema.rs', lines 1762:21-1762:60 -/
+@[reducible]
+def model.elicitation_schema.ElicitationSchemaBuilder.build.closure :=
+  alloc.vec.Vec String
 
 /-- [rmcp::model::meta::MetaObject]
     Source: 'crates/rmcp/src/model/meta.rs', lines 247:0-247:38

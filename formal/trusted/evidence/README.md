@@ -1860,3 +1860,286 @@ byte-identical to the committed output); `lake build --wfail Defs Proofs Specs R
 exit 0; `scripts/lean-guard.sh` `sources`, `build-log` and `axioms` exit 0 (0 trusted axioms, 0
 native-code axioms); `scripts/check-original-linkage.sh` exit 0 (65/42/37/10 blocks identical;
 520 constants and 41 externals elaborated identically, as before patch 07).
+
+## Elicitation schema externals (translation patch 08, targets X01–X75)
+
+Translation patch 08 (`formal/trusted/patches/08-elicitation-schema.patch`; human decision XD1,
+2026-11-28) lets the elicitation schema builders of `crates/rmcp/src/model/elicitation_schema.rs`
+translate. 65 of the 75 targets translate from the unmodified source (linkage `ORIGINAL`,
+certified by `scripts/check-original-linkage.sh` with the XD2 extension below); ten need the
+patch (linkage `patch-08`): X29 `enum_titles`, X32/X35 `with_default`, X33/X38 `build`, X36
+`min_items`, X37 `max_items`, X40 `ElicitationSchema::new`, X74 `ElicitationSchemaBuilder::build`
+and X75 `build_unchecked` (in no hunk, but it calls X74). The patch adds the private module
+`elicitation_schema::prim` (two functions, opaque in the translation, each the original
+expression) and the private translated helper `const_titles`, and makes the remaining code call
+only the standard-library functions below. Every model is a definition in
+`formal/trusted/Rmcp/FunsExternal.lean` (section "Elicitation schema builders"), with its source
+cited in its docstring; `TypesExternal.lean` adds the structure `BTreeMap` and the root types
+`F64`, `F32` (human decision XD3, below). No new axiom; `axioms.lock` stays empty. New `opaque`
+constants: `ExtModel.F64Carrier : NonemptyType` and `ExtModel.F32Carrier : NonemptyType` (XD3;
+non-empty since review finding TR6, as `ExtModel.LookupCarrier`, with the instances
+`instNonemptyF64` and `instNonemptyF32`), none for the functions.
+
+Models, with their Rust source (`nightly-2026-09-17` `rust-src`; `Source:` lines of the `prim`
+functions refer to the patch-01..08 copy):
+
+| Model | Source |
+|---|---|
+| type `BTreeMap<K, V, A>`: the entries in iteration order, ascending by `K`'s `Ord`, keys pairwise distinct (as `serde_json::Map`); node structure and allocator not modelled | `alloc/src/collections/btree/map.rs` lines 189–203 |
+| `BTreeMap::default`: no entries | `alloc/src/collections/btree/map.rs` lines 2606–2611 (`BTreeMap::new`) |
+| `BTreeMap::insert`: `ExtModel.btreeInsert`, a walk over the sorted entries comparing `k.cmp(key)` (`Greater` go on, `Equal` replace the value and keep the stored key, return the old value, `Less` insert before, end: append); failures of `cmp` propagate | `alloc/src/collections/btree/map.rs` lines 1047–1058 (`entry`, `Occupied`/`Vacant`), `alloc/src/collections/btree/search.rs` lines 225–242 (`find_key_index`: `key.cmp(k)`) |
+| `<String as Ord>::cmp`: `ExtModel.bytesCmp` of the UTF-8 bytes (built on the reviewed `ExtModel.bytesLt`) | `alloc/src/string.rs` line 350 (`#[derive(Ord)]` on `String { vec: Vec<u8> }`), `core/src/slice/cmp.rs` (`Ord for [u8]`) |
+| `<String as PartialOrd>::partial_cmp`: `some` of the `Ord` result | `alloc/src/string.rs` line 350 (`#[derive(PartialOrd)]`); `PartialOrd for [u8]` is `Some(Ord::cmp)` |
+| `Vec::default`: the empty vector | `alloc/src/vec/mod.rs` lines 4417–4419 |
+| `<str as Debug>::fmt`: `Ok(())`, formatter unchanged (total, not exact; stated exception, as `<ParseIntError as Debug>::fmt`) | `core/src/fmt/mod.rs` lines 2916 ff.; `core::fmt::Formatter` is opaque in the Aeneas library |
+| `<slice::Iter<'_, T> as Iterator>::all`: `ExtModel.sliceIterAll` (the reviewed model of `<Bytes as Iterator>::all`), on the remaining elements | `core/src/slice/iter/macros.rs` lines 304–313, instantiated by `iterator!` in `core/src/slice/iter.rs` lines 140–148 |
+| `prim::titles_mismatch_message` (lines 1814–1819): the literal text with both counts in decimal (`toString` of the `Nat` values) | `format!`, `alloc/src/macros.rs` lines 113–119, `alloc/src/fmt.rs` lines 651–662; `Display for usize`, `core/src/fmt/num.rs` |
+| `prim::sorted_keys` (lines 1821–1825): `ExtModel.collectVec 24` of the keys of the entries, in order | `BTreeMap::keys` and `Keys` (`alloc/src/collections/btree/map.rs` lines 2767–2769 and 2005–2050, `TrustedLen` at 2050), `Cloned` (`core/src/iter/adapters/cloned.rs` line 138), `Vec::from_iter` of a `TrustedLen` iterator (exact capacity; `24 * len > isize::MAX` is the capacity-overflow panic) |
+
+Stated exceptions (listed in `formal/README.md`, "Stated exceptions of the external
+models"): `BTreeMap::insert` assumes the entries are sorted with distinct keys and that `Ord::cmp`
+is a total, consistent, non-failing order (true of `Ord for String`, the only instance used;
+`Proofs.External.ElicitationSchema` proves that every map built from `BTreeMap::default` by
+`BTreeMap::insert` with it stays sorted); the B-tree compares `k` with fewer keys, which gives the
+same result under these assumptions. `<str as Debug>::fmt` is total, not exact: its only caller is
+the `expect` of X75, whose `Err` path is `fail panic` whatever the formatter holds, so the panic
+message is not modelled. Allocation failure is not modelled (module convention). Two
+consequences of patch 08 that the models make visible or hide (review findings TR2, TR3):
+`prim::sorted_keys` runs before the validation of X74 (hunk E7), so the translated X74 returns its
+validation `Err` only when `24 * properties.entries.length ≤ isize::MAX` (else the
+`ExtModel.collectVec` capacity panic); a spec of that `Err` path states this premise (unreachable
+for a map that exists). `const_titles` (hunk E8) builds the `one_of`/`any_of` vectors by `push`,
+so their capacity differs from upstream's exact `TrustedLen` collect (for one titled value: 4
+patched, 1 upstream); the elements and their order are the same, the capacity is visible only
+through `Vec::capacity` and memory use, and is not modelled (a Lean `Vec` is its elements).
+
+New trusted helpers (namespace `ExtModel`): `btreeInsert` and `bytesCmp`. Laws and specs, proved
+in `formal/proofs/Proofs/External/ElicitationSchema.lean` (no `sorry`; the root
+`formal/proofs/Proofs.lean` imports it): `bytesCmp_eq_lt_iff`, `bytesCmp_eq_eq_iff`,
+`bytesCmp_eq_gt_iff`, `Ordering.swap_bytesCmp` (a total order agreeing with `bytesLt` and
+equality), `bytesCmp_utf8_eq_eq_iff`; `btreeInsert_stringOrd_eq_ok`: with the generated `Ord`
+instance of `String`, `btreeInsert` is the reviewed `serde_json::Map` insertion
+`ExtModel.mapInsert`, so `sortedByKey_mapInsert` and `mapInsert_fst_of_sortedByKey`
+(`Proofs.External.Skill`) give the sorted invariant and the returned old value; a `_spec`
+theorem for each of the nine models (`BTreeMap.insert_string_spec` for `String` keys), and
+`prim.sorted_keys_eq_fail`.
+
+**`F64` and `F32` (human decision XD3).** The pinned Aeneas library defines no type for `f32` and
+`f64`, but Aeneas prints them as `F32` and `F64`: the committed `Rmcp.Types` already had
+`model.annotated.Annotations.priority : Option F32`, and patch 08's targets bring
+`model.elicitation_schema.NumberSchema` with `minimum`, `maximum`, `default : Option F64`. With
+Lean's default `autoImplicit`, an undefined `F32` in a structure field is bound as an implicit
+argument of the field: the committed `Annotations.priority` elaborated to `{F32 : Type} → Option
+F32` (only `none` inhabits it) and lifted `Annotations` to `Type 1` (measured on a minimal file with
+the pinned Lean, 2026-11-28). XD3 declares the root types `F64 := ExtModel.F64Carrier.type` and `F32
+:= ExtModel.F32Carrier.type` in `TypesExternal.lean` over two `opaque` carriers of type
+`NonemptyType` (no axiom; with the instances `Nonempty F64` and `Nonempty F32` from the carriers'
+property, as for `Lookup`; review finding TR6) and turns `autoImplicit` off for the library `Rmcp`
+(`formal/lakefile.toml`; `scripts/lean_guard.py` allows exactly this extra option for `Rmcp` and,
+since XD9, `RmcpExternal`), so any undefined name in the translation is now a build error. Decision
+XD9 (2026-11-28) sets the same option for `RmcpExternal`, so an undefined name in a trusted model is
+a build error too. So that this does not depend on Aeneas never emitting the option (review finding
+TR7), `scripts/lean-guard.sh sources` also refuses the option names `autoImplicit` and
+`relaxedAutoImplicit` anywhere in `formal/translation/` (any value, the `… in` form, `«…»` quoting,
+templates included), `set_option` of either with a value other than `false` in the hand-written
+files (five proof files set it to `false`; `Defs`, `Proofs` and `Specs` otherwise keep Lean's
+default, so this rule only refuses writing `true` explicitly), and a comment between `set_option`
+and its value in any file.
+
+Guard rules for `set_option` (review findings TR11, TR12; `scripts/lean_guard.py`, `RULE_LINTER`,
+`RULE_AUTOIMPLICIT_ON`, `RULE_SETOPT_COMMENT`). What Lean v4.36.0 (the pinned toolchain) accepts,
+tried on scratch files with `lean` 2026-11-28: the option name may follow `set_option` without
+whitespace when quoted (`set_option«autoImplicit» true in` takes effect) and the value may follow a
+closing `»` directly (`set_option«autoImplicit»false`); each name component may be quoted
+(`«linter».unusedVariables`, `linter.«unusedVariables»`, `«linter».«unusedVariables»` switch the
+linter off; `«linter.unusedVariables»` is an unknown option); a comment may stand between the name
+and the value (`set_option linter.unusedVariables /- c -/ false in` switches the linter off,
+`set_option autoImplicit /- c -/ true in` switches it on); the value is the token `true` or `false`
+(`«false»` and `true.x` are syntax errors, `"true"` and `0` type errors for a `Bool` option);
+`«auto»Implicit` and `_root_.autoImplicit` are not the option. The rules: in hand-written files,
+`set_option` with a name whose first component is `linter` or `«linter»` (later components plain or
+quoted) and the value `false` is refused (the one `dupNamespace` line of `FunsExternal.lean`
+excepted); `set_option autoImplicit`/`relaxedAutoImplicit` (plain or `«…»`-quoted, with or without
+whitespace after `set_option`) is refused unless the next token after whitespace (line breaks
+included) is `false`; in every file, a comment (`--`, `/-`) between `set_option` and its value,
+before or after the option name, is refused. Before this round, `set_option«autoImplicit» true`,
+`set_option «linter».unusedVariables false` and a comment between the name and the value passed, and
+`set_option «relaxedAutoImplicit» false` was wrongly refused. The elicitation stage added 34
+`lean_guard.py selftest` cases (13 before, 47 now; 5 of them for the generated-code rule) (47
+sources cases and 12 leanOptions cases in all, all passing on 2026-11-28). Control: the same
+selftest with the round-2 patterns of the three rules swapped back in fails exactly ten of the new
+cases (the comment between name and value in a generated and in a hand-written file, the linter
+options with a quoted first component or all components quoted, the two comment-before-`false`
+linter cases, `set_option«autoImplicit» true`, `set_option«relaxedAutoImplicit» true in`, and the
+two quoted-name-with-`false` cases refused).
+
+Justification: no translated target
+and no external model creates, reads or compares a float; the targets only move the `Option`
+fields of `NumberSchema` and `Annotations` values they are given (the `f64` builders of
+`NumberSchema` are not targets), so an abstract carrier is exact for them. No statement may
+inspect a value of these types (none can: no operation on them is declared). Checked (scratch
+`#check`, 2026-11-28): `model.annotated.Annotations.mk : Option (Vec model.Role) → Option F32 →
+Option String → model.annotated.Annotations`, `NumberSchema.mk : … → Option F64 → Option F64 →
+Option F64 → NumberSchema`, `Annotations`, `NumberSchema`, `PrimitiveSchemaDefinition` and
+`ElicitationSchema` in `Type`, `F64`/`F32` the root definitions; `lake build --wfail Defs Proofs
+Specs Rmcp RmcpExternal` passes with nothing else changed (no existing proof mentions
+`Annotations`). The upstream defect is recorded in
+`formal/trusted/issues/aeneas-elicitation-schema.md` (draft issue, not filed).
+
+Blob ids of `crates/rmcp/src/model/elicitation_schema.rs` (`git hash-object`, abbreviated):
+upstream `929b446`; after patches 01–07 `ca78a8d` (patch 02 appends the seven XD tests; no
+other patch touches the file); after patches 01–08 `3c55487` (the `index` line of patch 08).
+
+Tests. The upstream tests of `elicitation_schema.rs` (`mod tests`) and
+`crates/rmcp/tests/test_elicitation.rs`, and seven XD tests `x08_*` that patch 02 appends at the
+end of `mod tests` (human decision XD1; expected values computed from the upstream source, not
+from the Lean model): `x08_enum_titles_count_mismatch_message`,
+`x08_titled_options_pair_titles_with_values_in_order`, `x08_multi_select_default_membership`,
+`x08_property_order_is_the_byte_order_of_the_names`,
+`x08_build_required_names_must_be_property_names`, `x08_build_unchecked_panics_with_the_error`,
+`x08_build_unchecked_returns_the_built_schema`. Recorded run (2026-11-28, repository toolchain
+1.96, the workspace `Cargo.lock` copied into each copy): `cargo test --locked -p rmcp --lib
+--no-default-features --features
+request-state,server,client,client-side-sse,transport-streamable-http-server,transport-streamable-http-client,auth,macros`:
+872 passed, 0 failed with patches 01–07 and 872 passed, 0 failed with patches 01–08 (865 before
+plus the seven XD tests); `cargo test --locked -p rmcp --test test_elicitation --features
+elicitation,client,server`: 56 passed, 0 failed on both copies.
+
+| Models (and target paths) | Exercised by |
+|---|---|
+| `BTreeMap::default`, `Vec::default` (the derived `Default` of `ElicitationSchemaBuilder`, X45/X46) | every builder test: `test_elicitation_schema_builder_simple`, `test_elicitation_schema_builder_complex`, `test_elicitation_schema_serialization`; `test_elicitation.rs` `test_build_validation_required_field_not_in_properties`, `test_build_validation_required_field_exists`; `x08_property_order_is_the_byte_order_of_the_names` (empty builder: no properties, `required` `None`) |
+| `BTreeMap::insert`, `<String as Ord>::cmp` (X47–X70) | the builder tests above (two and four properties); `x08_property_order_is_the_byte_order_of_the_names` (seven names inserted out of order, among them `""`, `"B"`, `"a"`, `"aa"`, `"~"`, `"é"`: the map iterates them in byte order; inserting `"a"` again replaces its value and keeps one entry) |
+| `<String as PartialOrd>::partial_cmp` | not called by a target: it is the `partialOrdInst` field of the generated `Ord for String` instance; consistent with `cmp` (derived) |
+| `<slice::Iter as Iterator>::all` (X35 `with_default`, X74 `build`) | `test_enum_schema_invalid_multi_default`, `test_enum_schema_multi_select_with_default`, `test_enum_schema_multi_select_empty_default_means_no_default`; `test_elicitation.rs` `test_build_validation_required_field_not_in_properties`, `test_build_validation_required_field_exists`; `x08_multi_select_default_membership` (empty, reordered, repeated defaults accepted; a non-member first, last, differing in case or by a space rejected; membership checked before `max_items`); `x08_build_required_names_must_be_property_names` (no, reordered, repeated required names accepted; a missing name first or last, `"A"`, `""` rejected) |
+| `<str as Debug>::fmt` (X75 through `Result::expect`) | `test_elicitation.rs` `test_build_unchecked_panics_on_invalid`; `x08_build_unchecked_panics_with_the_error` (the exact panic message, the error `Debug`-quoted: not modelled); `x08_build_unchecked_returns_the_built_schema` |
+| `prim::titles_mismatch_message` (X29) | `x08_enum_titles_count_mismatch_message` (2 vs 1, 0 vs 3, multi-select 2 vs 0, 1000 vs 10; equal counts accepted); no upstream test |
+| `prim::sorted_keys` (X40, X74) | `test_elicitation_schema_with_schema_setter_serializes_dialect` (`ElicitationSchema::new` of the empty map); `x08_property_order_is_the_byte_order_of_the_names` (`property_order` of `build` and of `ElicitationSchema::new` is the byte order of the names; empty map and empty builder give `Some([])`); no upstream test checks the `property_order` of `build` |
+| `const_titles` (translated, X33/X38) | `test_enum_schema_titled_single_select_serialization`, `test_enum_schema_titled_multi_select_serialization`, `test_enum_schema_titled_with_default`; `x08_titled_options_pair_titles_with_values_in_order` (three, one and zero pairs, single and multi select) |
+
+Mutation check (2026-11-28, scratch copy with patches 01–08, `cargo test` as above filtered to
+`elicitation_schema`, 40 tests; each mutant alone; failing tests listed exactly): swapping the
+two counts in `prim::titles_mismatch_message` fails `x08_enum_titles_count_mismatch_message`
+alone; `any` for `all` in X35 fails `test_enum_schema_invalid_multi_default`,
+`test_enum_schema_multi_select_empty_default_means_no_default` and
+`x08_multi_select_default_membership`; `|_| true` for `names.contains` in X74 fails
+`x08_build_required_names_must_be_property_names` and `x08_build_unchecked_panics_with_the_error`;
+`any` for `all` in X74 fails `x08_build_required_names_must_be_property_names` alone; reversed
+values in `const_titles` fails `test_enum_schema_titled_multi_select_serialization`,
+`test_enum_schema_titled_single_select_serialization`, `test_enum_schema_titled_with_default` and
+`x08_titled_options_pair_titles_with_values_in_order`; `prim::sorted_keys` reversed, and
+`property_order` of X40 dropped for fewer than two keys, each fail
+`x08_property_order_is_the_byte_order_of_the_names` alone (no upstream test). Equivalent, survive:
+dropping `!self.required.is_empty() &&` in X74 (`all` of the empty list is true), and `None =>
+continue` for `None => break` in `const_titles` (the values are exhausted; every later `next` is
+`None`).
+
+**Clippy.** `cargo clippy --locked -p rmcp --lib --no-default-features --features
+request-state,server,client,client-side-sse,transport-streamable-http-server,transport-streamable-http-client,auth`,
+with and without `macros`, on the patch-01..07 and patch-01..08 copies (2026-11-28, repository
+toolchain 1.96): the same 10 warnings on all four runs (same lint, file and message), none in
+`elicitation_schema.rs`; with `--tests` and `macros`, no warning in `elicitation_schema.rs` (the XD
+tests included).
+
+**Linkage of the elicitation targets** (plan Section 19; human decision XD2). The eight patch-08
+start points (the `Type::method` patterns `EnumSchemaBuilder::{enum_titles, with_default, build,
+min_items, max_items}`, `ElicitationSchema::new`, `ElicitationSchemaBuilder::{build,
+build_unchecked}`) and the opaque entry `rmcp::model::elicitation_schema::prim` are dropped from
+the copy's Charon settings; the other 65 targets stay start points and are translated from the
+unmodified source. XD2 extends the check in two ways. (a) In the name-shadowing pre-check, a
+one-segment identifier directly before a `:=` of a declaration's body is no lookup when it is a
+binder or a field name: after `let`, `let mut`, `have` or `(`, or a structure-instance field
+(innermost bracket `{`, no `:` before it in that brace, after `{`, `,`, `with` or first on its
+line); without it the field `min_items := none` of X34 `single_select` read as the committed-only
+X36 `min_items`. (b) A std trait-instance block (`@[reducible, rust_trait_impl …]`, `Source:
+'/rustc/…'`) of the unmodified source may differ from the committed one by fields only the
+committed block sets (Aeneas emits a field only for a method the translated code reaches; the
+others are the Aeneas structure's defaults), `def` becoming `impl_def` only when such a field
+refers to the instance itself; and a token `P.m` that could read as field access on a
+committed-only std trait instance `P` whose field is `m := P.m` names the same function either
+way. Step 5 then requires the elaborated values of those instances to be the same structure
+constructor with the same binders, levels and parameters, differing exactly at those fields
+(`scripts/linkage/Dump.lean` dumps the constructor arguments, `compare_env.py` compares them);
+every other constant must still elaborate identically. Without (b), X47–X70 failed: patch 08's
+code reaches `Eq::assert_fields_are_eq` and `Ord::min` of `String`, and the `Clone` instance of
+`String`. Run (2026-11-28, scratch clone with this change and the lead-owned changes committed):
+`scripts/check-original-linkage.sh` exit 0 (Funs.lean 140 blocks: 138 identical, 2 std trait
+instances equal up to committed-only fields, `CoreCmpEq` (`assert_fields_are_eq`) and
+`CoreCmpOrd` (`min`, `impl_def`); Types.lean 72, the templates 45 and 11, identical; 926
+constants and 50 externals elaborated, 2 std trait instances equal up to committed-only fields).
+Negative controls (2026-11-28): end to end, a scratch clone whose committed `CoreCmpOrd` has
+`cmp := …CoreCmpPartialOrdString.partial_cmp` fails the check (exit 1, `DIFFERS in committed
+Funs.lean: alloc.string.String.Insts.CoreCmpOrd`); on the extracted text step, each fails with the
+expected message: a committed-only `…EnumSchemaBuilderMultiSelect.none` (a value position), a
+changed field value of X34, `let y : min_items := 0` (a type before `:=`), a `:` inside the
+brace, a changed shared field of `CoreCmpOrd`, a field only the unmodified `CoreCmpEq` sets,
+`impl_def` without a self-referring field, a changed instance type, and a committed-only `Clone`
+instance whose `clone` field names another function; the unedited translations pass. On the
+step-5 dumps of the run, `compare_env.py` fails without the instance list, when the shared field
+`cmp` of `CoreCmpOrd` differs, when the listed field is wrong (`max`) and when the list names no
+constant, and passes when only the listed field differs.
+
+Committed-only instance fields (review finding TR4, 2026-11-28). Rule (b) assumed that a field only
+the committed block sets either equals what the unmodified side gets (the Aeneas structure's
+default, which Lean fills in) or is read by nothing the unmodified side runs. Step 5 now checks it
+(`scripts/linkage/Widen.lean`, decided in `compare_env.py`): for each listed field, either the
+kernel finds the committed value definitionally equal to the env0 value (transported exactly as a
+JSON expression tree, closed, all constants present, reaching no listed instance) in env2, the
+committed translation built with the hand-written `formal/trusted/Rmcp/*External.lean` (as `lake
+build Rmcp RmcpExternal` builds it; env1's templates leave `String.Insts.CoreCmpEq.assert_fields_are_eq`
+an axiom), or no definition reachable from env0's four modules and none reachable from the
+hand-written external models projects the field (projection function, `Expr.proj` at its index,
+or an eliminator of the structure such as `casesOn`, `noConfusion` or a `match`; the structure's
+own generated declarations are not counted; theorems are not followed); otherwise the check
+fails. Run (scratch clone, 2026-11-28): both fields are definitionally equal,
+`CoreCmpEq.assert_fields_are_eq` (`Aeneas.Std.core.cmp.Eq`, index 1; committed: the external
+`ok ()`, unmodified: the default `fun _ => ok ()`) and `CoreCmpOrd.min` (`core.cmp.Ord`, index 4;
+committed `Ord.min.trait_default CoreCmpOrd`, unmodified `Ord.min_body (PartialOrd.lt
+CoreCmpPartialOrdString)`), and neither is projected by any reachable definition of env0 or of
+the external models. Stated limit (script header): code outside both environments (formal/specs,
+formal/proofs, downstream users) is not inspected; it sees the committed values.
+
+Executable controls (reviews TR4, TR10): `python3 -I scripts/linkage/controls.py <linkage-dir>
+<controls-dir>` after a passing run, exit 0 iff every case has its expected outcome; 34 of 34 on
+2026-11-28. Group A runs the text step (the step-4 Python extracted from the script) on edited
+copies of both translations: the unedited translations, a value shadowed, a changed field value,
+a `let` type, a brace with a colon, the instance cases above, and for the binder rule (TR10) a
+`let mut` binder and a `have` binder (pass), a `have` type and a `have` value (fail), a named
+argument `(min_items := none)` and one inside a structure-instance brace (pass), a named-argument
+value `(x := min_items)`, an application `(f min_items := none)` and a dotted name in binder
+position (fail). Group B runs `compare_env.py` on the run's dumps and `Widen.lean` results: the
+cases above, and for TR4: results missing or incomplete, field index differing (fail), not
+definitionally equal and projected by nothing (pass), not definitionally equal and projected in
+env0 or only by an external model (fail), definitionally equal though projected (pass). Group C
+builds a synthetic translation with `make_env.py` (env0, env1 with templates, env2 with a
+hand-written model) and runs `Dump.lean`, `Widen.lean` and `compare_env.py` end to end: a field
+`ok (x + 0)` against the default `ok x` (definitionally equal, accepted), `ok (x + 1)` projected by
+nothing (accepted), projected by an env0 definition, by an env0 `match` (`uses5.match_1`) or only
+by the hand-written model (each refused); with only the first two committed the check passes.
+
+Translation runs (2026-11-28, Aeneas `nightly-2026.11.24-fb44cb4`, Charon `0.1.324`, Rust
+`nightly-2026-09-17`, scratch clone of the repository at `1de63fd` with this change and the
+lead-owned changes): `scripts/apply-patches.sh` exit 0 (patches 01–08 apply with `-F 0`);
+`scripts/aeneas-translate.sh` exit 0 twice (all 179 targets defined, no `sorry`; the 73
+`Type::method` start points each name exactly one local function, `EnumSchemaBuilder::with_default`
+and `EnumSchemaBuilder::build` exactly their `SingleSelect` and `MultiSelect` methods, review
+finding TR9; `Funs.lean` sha256
+`eef79934a10cb94ba4c4d2ce2a5ca98ede7211b8da67a311c593d233137c3900` matching its new pin; the
+second run byte-identical, the generated files unchanged by the XD tests of patch 02); every
+target X01–X75 has a `def` with a body in `Funs.lean`. Controls of the `Type::method` count (TR9; the step-5b
+Python of the script extracted and run on edited copies of the committed `translation.json`,
+2026-11-28): unedited, pass; the `MultiSelect` `with_default` removed, a third instantiation
+`EnumSchemaBuilder<Other>::build` added, a second `StringSchema<u8>::email` added, and
+`StringSchema::email` made non-local, each fail with the pattern named; a closure below
+`StringSchema::email` added, pass (a method's own items are not counted). Count of the `Type::method` patterns (review finding TR16): the step-5b check
+now derives them from `start_from` itself (no `_` element; the element before the last starts with
+an upper-case ASCII letter, a Rust type), requires that each reaches its methods only through the
+type of an inherent impl (one that also matches an item by its own path is an error, no longer
+skipped), that no other pattern does so, and that their number equals the derived one: 73 of 73 in
+the full translation, 65 of 65 in the phase2 set of `scripts/check-original-linkage.sh` (logged by
+both runs). Controls (the step-5b Python extracted and run on edited copies of the committed
+`translation.json`, beside the round-2 version, 2026-11-28): unedited, and with the eight patch-08
+patterns removed from `start_from` (65 of 65), pass; a function named exactly
+`…::StringSchema::email`, one below that path, and a non-local item of that name each fail with
+"also matches a translated item by its own path" and "72 … expected 73" (the round-2 check passed
+all three, counting 72); a pattern `rmcp::model::lowmod::lowty::f` reaching a method through a
+lower-case type fails (round 2: pass); a `Type::method` pattern matching nothing fails (as before).

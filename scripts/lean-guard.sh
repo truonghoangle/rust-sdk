@@ -20,7 +20,8 @@
 #
 #   scripts/lean-guard.sh sources
 #       First `lean_guard.py selftest` (the two exact exemptions of step 3: the Aeneas
-#       macro-site phrase in generated docstrings and the one dupNamespace option in trusted/).
+#       macro-site phrase in generated docstrings and the one dupNamespace option in trusted/;
+#       the autoImplicit rules of step 3; and the leanOptions rule of step 1).
 #       0. formal/lean-toolchain is exactly leanprover/lean4:v4.36.0 (LEAN_TOOLCHAIN in
 #          lean_guard.py, updated with the Aeneas rev); git tracks nothing under a `.lake`
 #          directory below formal/ (skipped with a note outside a git work tree); no `.lake`
@@ -29,7 +30,9 @@
 #       1. formal/lakefile.toml (parsed as TOML) has exactly the five libraries of plan
 #          Section 5: Rmcp (srcDir translation), RmcpExternal (trusted), Defs (specs),
 #          Proofs (proofs), Specs (specs), with their fixed roots, each with exactly the keys
-#          name, srcDir, roots, leanOptions and leanOptions exactly { warningAsError = true };
+#          name, srcDir, roots, leanOptions and leanOptions exactly { warningAsError = true }
+#          (Rmcp and RmcpExternal: exactly { warningAsError = true, autoImplicit = false },
+#          human decisions XD3, XD9);
 #          package-level keys only name, defaultTargets, require, lean_lib (so no
 #          leanOptions, moreLeanArgs, weakLeanArgs, moreServerArgs, ... at any level); one
 #          [[require]] (aeneas); defaultTargets include Defs, Proofs, Specs; and no
@@ -51,8 +54,13 @@
 #          only in formal/specs/Specs.lean, formal/specs/Specs/ and
 #          formal/proofs/Proofs/Internal/), every attribute not in
 #          ATTR_ALLOWED (in `@[...]` and `attribute [...]`), the `native` option of decide,
-#          `debug.` options, `set_option linter.<name> false` (except in formal/translation/,
-#          where Aeneas emits it) and `axiom` outside formal/trusted/ (and the unbuilt
+#          `debug.` options, `set_option linter.<name> false` (each name component plain or
+#          «…»-quoted; except in formal/translation/, where Aeneas emits it), a comment
+#          anywhere between `set_option` and its value (before or after the option name), the
+#          option names autoImplicit and relaxedAutoImplicit anywhere in formal/translation/ and
+#          `set_option` of either (plain or «…»-quoted, with or without whitespace after
+#          `set_option`) with a value other than `false` elsewhere (human decision XD3, review
+#          findings TR7, TR11, TR12), and `axiom` outside formal/trusted/ (and the unbuilt
 #          Aeneas *_Template.lean files). Comments and docstrings count (exception, S21,
 #          generated files only: a word on a line pinned, with the file's sha256, in the
 #          trusted file formal/trusted/translation-pins.txt; today the MCP method name

@@ -134,6 +134,83 @@ start_from = [
   "rmcp::transport::common::mcp_headers::is_tchar",  # G02 (patch 07)
   "rmcp::transport::common::mcp_headers::encode_header_value",  # G03 (patch 07)
   "rmcp::transport::common::mcp_headers::decode_header_value",  # G04 (patch 07)
+  # Elicitation schema builders of elicitation_schema.rs (X01-X75 in Rust source order; the f64
+  # NumberSchema builders are not targets). `Type::method` patterns, which Charon resolves through
+  # the type (`_` globs would also reach NumberSchema and other same-named methods). Entries marked
+  # (patch 08) need formal/trusted/patches/08-elicitation-schema.patch; the others are ORIGINAL.
+  "rmcp::model::elicitation_schema::StringSchema::new",  # X01
+  "rmcp::model::elicitation_schema::StringSchema::email",  # X02
+  "rmcp::model::elicitation_schema::StringSchema::uri",  # X03
+  "rmcp::model::elicitation_schema::StringSchema::date",  # X04
+  "rmcp::model::elicitation_schema::StringSchema::date_time",  # X05
+  "rmcp::model::elicitation_schema::StringSchema::title",  # X06
+  "rmcp::model::elicitation_schema::StringSchema::description",  # X07
+  "rmcp::model::elicitation_schema::StringSchema::with_length",  # X08
+  "rmcp::model::elicitation_schema::StringSchema::length",  # X09
+  "rmcp::model::elicitation_schema::StringSchema::min_length",  # X10
+  "rmcp::model::elicitation_schema::StringSchema::max_length",  # X11
+  "rmcp::model::elicitation_schema::StringSchema::format",  # X12
+  "rmcp::model::elicitation_schema::StringSchema::with_default",  # X13
+  "rmcp::model::elicitation_schema::IntegerSchema::new",  # X14
+  "rmcp::model::elicitation_schema::IntegerSchema::with_range",  # X15
+  "rmcp::model::elicitation_schema::IntegerSchema::range",  # X16
+  "rmcp::model::elicitation_schema::IntegerSchema::minimum",  # X17
+  "rmcp::model::elicitation_schema::IntegerSchema::maximum",  # X18
+  "rmcp::model::elicitation_schema::IntegerSchema::title",  # X19
+  "rmcp::model::elicitation_schema::IntegerSchema::description",  # X20
+  "rmcp::model::elicitation_schema::IntegerSchema::with_default",  # X21
+  "rmcp::model::elicitation_schema::BooleanSchema::new",  # X22
+  "rmcp::model::elicitation_schema::BooleanSchema::title",  # X23
+  "rmcp::model::elicitation_schema::BooleanSchema::description",  # X24
+  "rmcp::model::elicitation_schema::BooleanSchema::with_default",  # X25
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::title",  # X26
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::description",  # X27
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::untitled",  # X28
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::enum_titles",  # X29 (patch 08)
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::new",  # X30
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::multiselect",  # X31
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::with_default",  # X32 X35 (patch 08)
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::build",  # X33 X38 (patch 08)
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::single_select",  # X34
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::min_items",  # X36 (patch 08)
+  "rmcp::model::elicitation_schema::EnumSchemaBuilder::max_items",  # X37 (patch 08)
+  "rmcp::model::elicitation_schema::EnumSchema::builder",  # X39
+  "rmcp::model::elicitation_schema::ElicitationSchema::new",  # X40 (patch 08)
+  "rmcp::model::elicitation_schema::ElicitationSchema::with_required",  # X41
+  "rmcp::model::elicitation_schema::ElicitationSchema::with_title",  # X42
+  "rmcp::model::elicitation_schema::ElicitationSchema::with_description",  # X43
+  "rmcp::model::elicitation_schema::ElicitationSchema::with_schema",  # X44
+  "rmcp::model::elicitation_schema::ElicitationSchema::builder",  # X45
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::new",  # X46
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::property",  # X47
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_property",  # X48
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::string_property",  # X49
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_string_property",  # X50
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::integer_property",  # X51
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_integer_property",  # X52
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::bool_property",  # X53
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_bool_property",  # X54
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_string",  # X55
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_string",  # X56
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_email",  # X57
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_email",  # X58
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_string_with",  # X59
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_string_with",  # X60
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_integer",  # X61
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_integer",  # X62
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_integer_with",  # X63
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_integer_with",  # X64
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_bool",  # X65
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_bool",  # X66
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_bool_with",  # X67
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_bool_with",  # X68
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::required_enum_schema",  # X69
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::optional_enum_schema",  # X70
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::mark_required",  # X71
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::title",  # X72
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::description",  # X73
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::build",  # X74 (patch 08)
+  "rmcp::model::elicitation_schema::ElicitationSchemaBuilder::build_unchecked",  # X75 (patch 08)
 ]
 hide_marker_traits = true
 exclude = [
@@ -194,6 +271,10 @@ opaque = [
   # str::chars().any, of format! and of the base64 engine BASE64_STANDARD (B3); Lean models:
   # formal/trusted/Rmcp/FunsExternal.lean.
   "rmcp::transport::common::mcp_headers::prim",
+  # Created by translation patch 08: one-line wrappers of a format! (core::fmt::Arguments is Unit
+  # in the Aeneas library) and of BTreeMap::keys().cloned().collect() (Aeneas internal error);
+  # Lean models: formal/trusted/Rmcp/FunsExternal.lean.
+  "rmcp::model::elicitation_schema::prim",
   # Phase 2, human decision H4: the type only. A01-A03 are associated functions of
   # AuthorizationManager that never use `self`; translating the type makes Charon fail (a hax
   # panic on the fields `Arc<dyn CredentialStore>` and `Arc<dyn StateStore>`, auth.rs:1252-1253;

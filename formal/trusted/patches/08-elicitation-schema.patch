@@ -1,0 +1,289 @@
+Translation patch: the elicitation schema builders of
+crates/rmcp/src/model/elicitation_schema.rs, so that X29 enum_titles, X32
+EnumSchemaBuilder<SingleSelect>::with_default, X35-X37 EnumSchemaBuilder<MultiSelect>::
+{with_default, min_items, max_items}, X33/X38 EnumSchemaBuilder<..>::build, X40
+ElicitationSchema::new and X74/X75 ElicitationSchemaBuilder::{build, build_unchecked} translate
+and build with exact external models (human decision XD1, 2026-11-28: adopted as drafted, 11
+hunks, the private opaque module prim with titles_mismatch_message and sorted_keys; linkage
+patch-08 for these ten targets, X75 because it calls X74). The other 65 targets of X01-X75
+translate unmodified and are not touched (linkage ORIGINAL, certified by
+scripts/check-original-linkage.sh, human decision XD2).
+
+Applies to: the copy of upstream origin/main 7caec762799bece6fba38e4298b8ca7db8bac12c after
+patches 01-07 (scripts/apply-patches.sh, patch -p1 -F 0, only to the copy in .llbc/work/; the
+real source is never patched). File: crates/rmcp/src/model/elicitation_schema.rs only (blob
+929b446 upstream; ca78a8d after patches 01-07, where 02-phase2-tests.patch appends the XD tests
+at the end of mod tests and no other patch touches the file; 3c55487 after this patch). Every
+hunk lies before mod tests, so it applies at its recorded lines. Generated with git diff from
+the patch-01..07 copy, formatted with rustfmt of nightly-2026-09-17 and the repository
+rustfmt.toml. Toolchain measured: Aeneas nightly-2026.11.24-fb44cb4, Charon 0.1.324, Rust
+nightly-2026-09-17.
+
+Not part of this patch (they stay in the repository): the Charon settings in
+crates/rmcp/Cargo.toml (73 start_from entries for X01-X75; the opaque entry
+rmcp::model::elicitation_schema::prim), TARGETS and PATCH08_TARGETS of
+scripts/aeneas-translate.sh, the patch08 set of scripts/check-original-linkage.sh, the
+translation pin, and the external models of formal/trusted/Rmcp/FunsExternal.lean (section
+"Elicitation schema builders") and TypesExternal.lean (BTreeMap; F64/F32, human decision XD3).
+
+Change (non-test lines only; no test is added or changed):
+ prim  New private module `prim` before `mod tests`, opaque in the translation and modelled in
+       Lean, each the original expression with the same arguments: titles_mismatch_message
+       (the `format!` of enum_titles, same format string and arguments) and sorted_keys
+       (`properties.keys().cloned().collect()` into a Vec<String>).
+ E1  X29 enum_titles: `prim::titles_mismatch_message(self.enum_values.len(), titles.len())`.
+ E2  X32 with_default (single): the error literal's `.to_string()` becomes `.to_owned()`.
+ E3  X35 with_default (multi): the `for` loop with an early `return Err(..)` becomes
+     `if !default_values.iter().all(|value| self.enum_values.contains(value)) { return Err(..) }`;
+     the three error literals use `.to_owned()`.
+ E8  X33/X38 EnumSchemaBuilder<SingleSelect|MultiSelect>::build, titled branch: the
+     `self.enum_titles.into_iter().zip(self.enum_values).map(|(title, const_)| ConstTitle {
+     const_, title }).collect()` becomes `const_titles(self.enum_titles, self.enum_values)`, a new
+     private (translated, not opaque) function that loops `for title in titles { match
+     values.next() { Some(const_) => out.push(ConstTitle { const_, title }), None => break } }`.
+ E4  X36 min_items, E5 X37 max_items: the two error literals each use `.to_owned()`.
+ E6  X40 ElicitationSchema::new: `prim::sorted_keys(&properties)`.
+ E7  X74 ElicitationSchemaBuilder::build: `names = prim::sorted_keys(&self.properties)` first;
+     the validation becomes `!self.required.is_empty() && !self.required.iter().all(|f|
+     names.contains(f))`; the property order is `Some(names)`. (X75 build_unchecked is
+     unchanged; it calls X74.)
+
+Why each hunk is needed (measured 2026-11-28 in a scratch copy, each target alone):
+ prim, E6, E7  `m.keys().cloned().collect()` on a BTreeMap: "[Error] Internal error" at the
+     Iterator trait declaration (core/src/iter/traits/iterator.rs 42), then "Fatal error:
+     exception Aeneas.Errors.CFailure" (SymbolicToPureTypes.translate_fun_sigs).
+ E7  the loop over `&self.required` with `return Err` inside: "[Error] Early returns inside of
+     loops are not supported yet". Any loop or closure that calls `self.properties.contains_key`
+     fails because the map's value type holds a `Cow<'static, str>`: a `for` with a flag
+     ("unsupported nested borrows"), a `while` with an index ("Not implemented"),
+     `.iter().all(|f| self.properties.contains_key(f))` with or without a `prim::contains_key`
+     wrapper ("Internal error" in the closure's call_mut). Validating against the key list (a
+     Vec<String>) avoids the map inside the loop.
+ E1, prim  `format!` translates to `alloc::fmt::format` of a `core::fmt::Arguments`, which the
+     Aeneas library defines as `Unit`: no exact model exists.
+ E2-E5  `"..".to_string()` translates to the blanket `ToString::to_string` through
+     `Display for str`, whose `core::fmt::Formatter` is opaque in the Aeneas library: no exact
+     model exists. `str::to_owned` has a reviewed model (patch 03).
+ E8  Aeneas translates the chain (no error) but generates `Iterator` instances for the std
+     adapters `Map<I, F>` and `Zip<A, B>` with fields `zip`, `map`, `collect`, `all`, `any`,
+     which the Iterator structure of the Aeneas library does not have (Aeneas warns "could not
+     find the information for item 'zip'"); `lake build` then fails with "`zip` is not a field
+     of structure `core.iter.traits.iterator.Iterator`" (10 errors in Rmcp.Funs).
+ E3  the `for` loop with an early return: "[Error] Internal error, please file an issue"
+     (Interp.ml 686; the body becomes `sorry`).
+No upstream Charon or Aeneas issue has been filed; the reproducers and draft issue texts are
+recorded in formal/trusted/issues/aeneas-elicitation-schema.md.
+
+Why the behaviour is unchanged: every value returned is the same. The prim functions are the
+original expressions. `str::to_string` and `str::to_owned` both return a `String` with the bytes
+of the literal (`ToString` for `str` is specialised to `String::from`, i.e. `to_owned`).
+`iter().all(p)` stops at the first element for which `p` is false, where the loop returned, and
+`contains` has no side effect. In E7 `contains_key(f)` on the map and `contains(f)` on the list
+of all its keys agree for every `f` (`Ord for String` agrees with `Eq`), and the key list is the
+value the original computed after the check; computing it first adds the allocation of that
+list on the error path. In Rust this changes no returned value (the list is dropped). In the Lean
+model it is visible: prim::sorted_keys is `ExtModel.collectVec 24 ..`, which is `fail panic`
+when 24 * len bytes exceed isize::MAX, so the translated X74 returns the validation `Err` only
+under the premise `24 * properties.entries.length <= isize::MAX` (unreachable for a real Rust
+map: its keys are 24-byte `String`s that already exist in memory), and specs of the `Err` path
+must state it. In E8 the loop pairs the i-th title with the i-th value
+and stops when either list ends, as `Zip::next` (which calls the titles' `next` first and drops
+nothing observable); the result holds the same elements in the same order, but its capacity
+differs (`one_of`/`any_of` are `pub` Vec fields: for
+`EnumSchema::builder(vec!["v"]).enum_titles(vec!["t"]).unwrap().build()` it is 4 patched, by
+`Vec::push` growth, and 1 upstream, by the exact `TrustedLen` collect). The capacity is visible
+only through `Vec::capacity` and memory use, and is not modelled (a Lean `Vec` is its list of
+elements). `a && b` is the nested `if`; for an empty `required`,
+`all` is true anyway.
+
+diff --git a/crates/rmcp/src/model/elicitation_schema.rs b/crates/rmcp/src/model/elicitation_schema.rs
+index ca78a8d..3c55487 100644
+--- a/crates/rmcp/src/model/elicitation_schema.rs
++++ b/crates/rmcp/src/model/elicitation_schema.rs
+@@ -882,10 +882,9 @@ impl<T> EnumSchemaBuilder<T> {
+     /// Set titles to enum values. Also, implicitly set this enum schema as titled
+     pub fn enum_titles(mut self, titles: Vec<String>) -> Result<EnumSchemaBuilder<T>, String> {
+         if titles.len() != self.enum_values.len() {
+-            return Err(format!(
+-                "Provided number of titles do not match number of values: expected {}, but got {}",
++            return Err(prim::titles_mismatch_message(
+                 self.enum_values.len(),
+-                titles.len()
++                titles.len(),
+             ));
+         }
+         self.titled = true;
+@@ -929,7 +928,7 @@ impl EnumSchemaBuilder<SingleSelect> {
+     ) -> Result<EnumSchemaBuilder<SingleSelect>, String> {
+         let value: String = default_value.into();
+         if !self.enum_values.contains(&value) {
+-            return Err("Provided default value is not in enum values".to_string());
++            return Err("Provided default value is not in enum values".to_owned());
+         }
+         self.default = vec![value];
+         Ok(self)
+@@ -952,12 +951,7 @@ impl EnumSchemaBuilder<SingleSelect> {
+                     type_: StringTypeConst,
+                     title: self.title,
+                     description: self.description,
+-                    one_of: self
+-                        .enum_titles
+-                        .into_iter()
+-                        .zip(self.enum_values)
+-                        .map(|(title, const_)| ConstTitle { const_, title })
+-                        .collect(),
++                    one_of: const_titles(self.enum_titles, self.enum_values),
+                     default: self.default.pop(),
+                 },
+             )),
+@@ -997,10 +991,11 @@ impl EnumSchemaBuilder<MultiSelect> {
+         mut self,
+         default_values: Vec<String>,
+     ) -> Result<EnumSchemaBuilder<MultiSelect>, String> {
+-        for value in &default_values {
+-            if !self.enum_values.contains(value) {
+-                return Err("One of the provided default values is not in enum values".to_string());
+-            }
++        if !default_values
++            .iter()
++            .all(|value| self.enum_values.contains(value))
++        {
++            return Err("One of the provided default values is not in enum values".to_owned());
+         }
+         // An empty default is "no default": `build()` does not emit it, so it
+         // cannot contradict `min_items` and is not checked against the bounds.
+@@ -1008,13 +1003,13 @@ impl EnumSchemaBuilder<MultiSelect> {
+             if let Some(min) = self.min_items
+                 && (default_values.len() as u64) < min
+             {
+-                return Err("Number of provided default values is less than min_items".to_string());
++                return Err("Number of provided default values is less than min_items".to_owned());
+             }
+             if let Some(max) = self.max_items
+                 && (default_values.len() as u64) > max
+             {
+                 return Err(
+-                    "Number of provided default values is greater than max_items".to_string(),
++                    "Number of provided default values is greater than max_items".to_owned(),
+                 );
+             }
+         }
+@@ -1035,11 +1030,11 @@ impl EnumSchemaBuilder<MultiSelect> {
+         if let Some(max) = self.max_items
+             && value > max
+         {
+-            return Err("Provided value is greater than max_items".to_string());
++            return Err("Provided value is greater than max_items".to_owned());
+         }
+         // An empty default is not emitted by `build()`, so there is nothing to validate.
+         if !self.default.is_empty() && (self.default.len() as u64) < value {
+-            return Err("Number of provided default values is less than min_items".to_string());
++            return Err("Number of provided default values is less than min_items".to_owned());
+         }
+         self.min_items = Some(value);
+         Ok(self)
+@@ -1058,10 +1053,10 @@ impl EnumSchemaBuilder<MultiSelect> {
+         if let Some(min) = self.min_items
+             && value < min
+         {
+-            return Err("Provided value is less than min_items".to_string());
++            return Err("Provided value is less than min_items".to_owned());
+         }
+         if !self.default.is_empty() && (self.default.len() as u64) > value {
+-            return Err("Number of provided default values is greater than max_items".to_string());
++            return Err("Number of provided default values is greater than max_items".to_owned());
+         }
+         self.max_items = Some(value);
+         Ok(self)
+@@ -1095,12 +1090,7 @@ impl EnumSchemaBuilder<MultiSelect> {
+                 min_items: self.min_items,
+                 max_items: self.max_items,
+                 items: TitledItems {
+-                    any_of: self
+-                        .enum_titles
+-                        .into_iter()
+-                        .zip(self.enum_values)
+-                        .map(|(title, const_)| ConstTitle { const_, title })
+-                        .collect(),
++                    any_of: const_titles(self.enum_titles, self.enum_values),
+                 },
+                 default: if self.default.is_empty() {
+                     None
+@@ -1267,7 +1257,7 @@ impl<'de> Deserialize<'de> for ElicitationSchema {
+ impl ElicitationSchema {
+     /// Create a new elicitation schema with the given properties
+     pub fn new(properties: BTreeMap<String, PrimitiveSchemaDefinition>) -> Self {
+-        let property_order = Some(properties.keys().cloned().collect());
++        let property_order = Some(prim::sorted_keys(&properties));
+         Self {
+             schema: None,
+             type_: ObjectTypeConst,
+@@ -1762,16 +1752,19 @@ impl ElicitationSchemaBuilder {
+     /// - Required fields reference non-existent properties
+     /// - No properties are defined (empty schema)
+     pub fn build(self) -> Result<ElicitationSchema, &'static str> {
++        // The property names, in the map's (sorted) order.
++        let names = prim::sorted_keys(&self.properties);
+         // Validate that all required fields exist in properties
+-        if !self.required.is_empty() {
+-            for field_name in &self.required {
+-                if !self.properties.contains_key(field_name) {
+-                    return Err("Required field does not exist in properties");
+-                }
+-            }
++        if !self.required.is_empty()
++            && !self
++                .required
++                .iter()
++                .all(|field_name| names.contains(field_name))
++        {
++            return Err("Required field does not exist in properties");
+         }
+ 
+-        let property_order = Some(self.properties.keys().cloned().collect());
++        let property_order = Some(names);
+         Ok(ElicitationSchema {
+             schema: None,
+             type_: ObjectTypeConst,
+@@ -1797,6 +1790,41 @@ impl ElicitationSchemaBuilder {
+     }
+ }
+ 
++/// The titled options of [`EnumSchemaBuilder::build`]: `titles.into_iter().zip(values)
++/// .map(|(title, const_)| ConstTitle { const_, title }).collect()`, written as a loop.
++fn const_titles(titles: Vec<String>, values: Vec<String>) -> Vec<ConstTitle> {
++    let mut values = values.into_iter();
++    let mut out = Vec::new();
++    for title in titles {
++        match values.next() {
++            Some(const_) => out.push(ConstTitle { const_, title }),
++            None => break,
++        }
++    }
++    out
++}
++
++/// Wrappers that the verification translation keeps opaque, each the original expression:
++/// the `format!` of `EnumSchemaBuilder::enum_titles` and the sorted key list of a `BTreeMap`.
++mod prim {
++    use std::collections::BTreeMap;
++
++    use super::PrimitiveSchemaDefinition;
++
++    pub(super) fn titles_mismatch_message(expected: usize, got: usize) -> String {
++        format!(
++            "Provided number of titles do not match number of values: expected {}, but got {}",
++            expected, got
++        )
++    }
++
++    pub(super) fn sorted_keys(
++        properties: &BTreeMap<String, PrimitiveSchemaDefinition>,
++    ) -> Vec<String> {
++        properties.keys().cloned().collect()
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use anyhow::anyhow;
